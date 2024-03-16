@@ -1,7 +1,7 @@
 import socket
 
 if __name__ == "__main__":
-    server_ip = "127.0.0.1"
+    server_ip = "134.226.251.231"
     port = 61005
 
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -13,6 +13,10 @@ while True:
     message = input("Enter your message: ")
 
     server.send(bytes(message, "utf-8"))
+
+    received = server.recv(1024)
+
+    print(received)
 
     if message == "END":
         break
