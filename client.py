@@ -1,7 +1,7 @@
 import socket
 
 if __name__ == "__main__":
-    server_ip = "134.226.251.231"
+    server_ip = "192.168.1.2"
     port = 61005
 
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
