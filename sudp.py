@@ -7,20 +7,23 @@ import json
 chats = {}
 
 class Chat:
-    def __init__(self, chat_id):
+    def __init__(self, chat_id, server):
         self.chat_id = chat_id
 
         self.buffer = [] 
+        self.server = server
         self.incoming_lock = threading.Lock()  
         
         self.thread_number = threading.Thread(target=self.chat_loop,)
         self.thread_number.start()
 
-    def chat_loop(self, packet):
-        message = packet
-        self.buffer.append(message)
+  
+    def chat_loop(self):
         while True:
             with self.incoming_lock:
+                message, addr = self.server.recvfrom(1024)
+                if addr == self.chat_id:
+                    self.buffer.append(message.decode())
                 if len(self.buffer) > 0:
                     print(f"Received message {self.chat_id}, {self.buffer[0]}")
                     self.buffer.pop(0)
@@ -30,18 +33,17 @@ class Chat:
 
 def handle_client(server_socket, addr, data, chats):
     
-    packet = data.decode()
     chat_number = chats.get(addr)
 
     # If there is a chat matching this ID send it to the SR ARQ handler.
     if chat_number:
-        chat_number.chat_loop(packet)
+        chat_number.chat_loop()
     else:
         # If the chat doesn't exist 
-        chats[addr] = Chat(addr)
+        chats[addr] = Chat(addr, server_socket)
 
         # Send the packet.
-        chats[addr].chat_loop(packet)
+        chats[addr].chat_loop()
 
     print(f"Number of Clients: {len(chats)}")
 
