@@ -2,6 +2,8 @@ import socket
 import random
 import zlib
 import struct
+import time
+import handlers
 
 # type PcktHeader struct {
 #     Magic        uint32 // 4 bytes
@@ -37,23 +39,6 @@ seq_num = 1
 final = 0
 type = 0
 
-def get_checksum(data):
-    checksum = zlib.crc32(data)
-    return checksum
-
-def create_packet(data):
-    packet = data.encode()
-    checksum = get_checksum(packet)
-
-    # Creating the UDP header with 4 fields all of 4 bytes long.
-    # One 'I' size is 4 bytes, so 4 items x 4 = 16 bytes of header.
-    header = struct.pack("!IIIIHH", magic, checksum, id, seq_num, final, type)
-
-    body = struct.pack()
-
-    udp_packet = header + packet
-    return udp_packet
-
 
 def main():
 
@@ -64,16 +49,22 @@ def main():
     
     while True:
         message = input("Enter Message: ")
+        #message = "Hello"
 
-        packet = create_packet(message)
+        packet = handlers.create_packet(magic, id, seq_num, final, type, message)
 
         client_socket.sendto(packet, server_addr)
 
         print("Sent message to server: {}".format(message))
 
-        received, addr = client_socket.recvfrom(1024)
-        print(f"{received.decode()}")
 
+        rec_pack, addr = client_socket.recvfrom(1024)
+        print(f"{len(rec_pack)}")
+        received = handlers.decode_packet(rec_pack)
+        print(f"From Server: {received.data.decode()}")
+
+        # Delay For testing.
+        #time.sleep(1)
         
 if __name__ == "__main__":
     main()

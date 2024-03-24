@@ -3,23 +3,20 @@ import threading
 import struct
 import zlib
 
+import handlers
+
+
 # Initialise array of chats.
 chats = {}
 
 # Declared globally here so that the server can be accessed by all the fucntions.
 host = '0.0.0.0'
 port = 61000
+
+magic = 17109271
    
 # Create a UDP socket
 server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
-class udp_packet:
-    def __init__(self, magic, checksum, id, data):
-        self.magic = magic
-        self.checksum = checksum
-        self.id = id
-        self.data = data
-
 
 def get_checksum(data):
     checksum = zlib.crc32(data)
@@ -48,17 +45,21 @@ class Chat:
         with self.incoming_lock:
             self.buffer.append(packet.data.decode())
 
+            handlers.send_ack(server, self.addr, packet)
+
             corrupted = corruption_check(packet)
+            if(corrupted or packet.magic != magic):
+                handlers.resend(server, self.addr, packet)
+
             
             if len(self.buffer) > 0:
                     print(f"Received from ID {self.id}, {self.buffer[0]}")
                     self.buffer.pop(0)
-                    server.sendto(f"ACK".encode() , self.addr)
 
 
 def handle_client(addr, packet, chats):
 
-    dec_pack = decode_packet(packet)
+    dec_pack = handlers.decode_packet(packet)
     
     chat_number = chats.get(dec_pack.id)
 
@@ -76,21 +77,6 @@ def handle_client(addr, packet, chats):
         #chats[addr].chat_loop(data)
 
     print(f"Number of Clients: {len(chats)}")
-
-# Decoding the UDP packet which is a stream of bytes.
-def decode_packet(packet):
-    # Extract everything up to and including the 16th byte as header.
-    header = packet[:20]
-    # Everything After this is the data that was sent.
-    data = packet[20:]
-    header = struct.unpack("!IIIIHH", header)
-    # The third entry in the header is the checksum.
-    magic = header[0]
-    checksum = header[1]
-    id = header[2]
-
-    new_packet = udp_packet(magic, checksum, id, data)
-    return new_packet
 
 def server_listener():
     
