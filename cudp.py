@@ -50,32 +50,30 @@ sent_packets = {}
 
 timeouts = {}
 
-recv_packets = {}
+ack_packets = {}
 
 class timeout:
     def __init__(self, seq_num):
-        global received
         self.seq_num = seq_num
         self.exceptions = 0
 
-        self.lock = threading.Lock()
-        self.timeout_thread = threading.Thread(target=self.timeout_loop, )
-        self.timeout_thread.start()
+        #self.lock = threading.Lock()
+        #self.timeout_thread = threading.Thread(target=self.timeout_loop, )
+        #self.timeout_thread.start()
 
         self.timer = 0
 
     def timeout_loop(self):
         self.timer = time.time() + 3
-        with self.lock:
-            while True and self.exceptions < 3:
-                received = recv_packets.get(self.seq_num)
-                if (time.time() > self.timer):
-                    resend(sent_packets[self.seq_num])
-                    self.exceptions = self.exceptions + 1
-                    self.timer = time.time() + 3
-                else:
-                    if received and received.type == 1:
-                        break
+        #with self.lock:
+
+        while time.time() < self.timer:
+                received = ack_packets.get(self.seq_num)
+                #print(f"{received}")
+                if received and received.type == 1:
+                    return
+                    
+        resend(sent_packets[self.seq_num])
 
 def client_listener():
     counter = 0
@@ -83,8 +81,8 @@ def client_listener():
         try:
             rec_pack, addr = client_socket.recvfrom(1024)
             received = handlers.decode_packet(rec_pack)
-            recv_packets[received.seq_num] = received
-            print(f"From Server: {received.data.decode()} {received.seq_num}")
+            ack_packets[received.seq_num] = received
+            print(f"\nFrom Server: {received.data.decode()} {received.seq_num}")
         except:
             continue
 
@@ -93,10 +91,11 @@ def resend(received):
     packet = sent_packets.get(received.seq_num)
     send_packet = handlers.encode_packet(packet)
     client_socket.sendto(send_packet, server_addr)
-    print(f"Resent to server: {packet.data.decode()} with Sequence No. {packet.seq_num}")
+    print(f"\nResent to server: {packet.data.decode()} with Sequence No. {packet.seq_num}")
 
 def start_timeout(seq_num):
     timeouts[seq_num] = timeout(seq_num)
+    timeouts[seq_num].timeout_loop()
                 
 def client_sender():
     sequence = 0
@@ -112,7 +111,7 @@ def client_sender():
         start_timeout(dec_pack.seq_num)
         print("Sent message to server: {}".format(message))
 
-        #sequence = sequence + 1
+        sequence = sequence + 1
 
 def main():
 
