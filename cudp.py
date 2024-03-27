@@ -1,7 +1,6 @@
 import socket
 import random
-import zlib
-import struct
+import threading
 import time
 import handlers
 
@@ -40,31 +39,88 @@ final = 0
 type = 0
 
 
-def main():
+server_addr = (host, port)
+# Create a UDP socket
+client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+client_socket.settimeout(2)
 
-    server_addr = (host, port)
+exception = True
+        
+sent_packets = {}
 
-    # Create a UDP socket
-    client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    
+timeouts = {}
+
+recv_packets = {}
+
+class timeout:
+    def __init__(self, seq_num):
+        global received
+        self.seq_num = seq_num
+        self.exceptions = 0
+
+        self.lock = threading.Lock()
+        self.timeout_thread = threading.Thread(target=self.timeout_loop, )
+        self.timeout_thread.start()
+
+        self.timer = 0
+
+    def timeout_loop(self):
+        self.timer = time.time() + 3
+        with self.lock:
+            while True and self.exceptions < 3:
+                received = recv_packets.get(self.seq_num)
+                if (time.time() > self.timer):
+                    resend(sent_packets[self.seq_num])
+                    self.exceptions = self.exceptions + 1
+                    self.timer = time.time() + 3
+                else:
+                    if received and received.type == 1:
+                        break
+
+def client_listener():
+    counter = 0
+    while True:
+        try:
+            rec_pack, addr = client_socket.recvfrom(1024)
+            received = handlers.decode_packet(rec_pack)
+            recv_packets[received.seq_num] = received
+            print(f"From Server: {received.data.decode()} {received.seq_num}")
+        except:
+            continue
+
+
+def resend(received):
+    packet = sent_packets.get(received.seq_num)
+    send_packet = handlers.encode_packet(packet)
+    client_socket.sendto(send_packet, server_addr)
+    print(f"Resent to server: {packet.data.decode()} with Sequence No. {packet.seq_num}")
+
+def start_timeout(seq_num):
+    timeouts[seq_num] = timeout(seq_num)
+                
+def client_sender():
+    sequence = 0
     while True:
         message = input("Enter Message: ")
         #message = "Hello"
 
-        packet = handlers.create_packet(magic, id, seq_num, final, type, message)
+        packet = handlers.create_packet(magic, id, sequence, final, type, message)
+        dec_pack = handlers.decode_packet(packet)
+        sent_packets[dec_pack.seq_num] = dec_pack
 
         client_socket.sendto(packet, server_addr)
-
+        start_timeout(dec_pack.seq_num)
         print("Sent message to server: {}".format(message))
 
+        #sequence = sequence + 1
 
-        rec_pack, addr = client_socket.recvfrom(1024)
-        print(f"{len(rec_pack)}")
-        received = handlers.decode_packet(rec_pack)
-        print(f"From Server: {received.data.decode()}")
+def main():
 
-        # Delay For testing.
-        #time.sleep(1)
-        
+    send_thread = threading.Thread(target=client_sender, )
+    send_thread.start()
+    
+    listen_thread = threading.Thread(target=client_listener, )
+    listen_thread.start()
+
 if __name__ == "__main__":
     main()

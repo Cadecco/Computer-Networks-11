@@ -26,43 +26,65 @@ import zlib
 
 #define MAGIC 17109271
 
+magic = 17109271
+
 def get_checksum(data):
     checksum = zlib.crc32(data)
     return checksum
+
+def corruption_check(packet):
+    correct_checksum = packet.checksum
+    checksum = get_checksum(packet.data)
+    corrupted = correct_checksum != checksum
+    return corrupted
 
 class udp_packet:
     def __init__(self, magic, checksum, id, seq_num, final, type, data):
         self.magic = magic
         self.checksum = checksum
-        self.id = id
+        self.client_id = id
         self.seq_num = seq_num
         self.final = final
         self.type = type
         self.data = data
 
-def resend(server_socket, addr, packet):
-    server_socket.sendto(f"Please Resend {packet.seq_num}".encode() , addr)
 
 def send_ack(server_socket, addr, packet):
-    ack_packet = create_packet(packet.magic, packet.id, packet.seq_num, packet.final, 1, None)
+    ack_packet = create_packet(packet.magic, packet.client_id, packet.seq_num, packet.final, 1, 'ACK')
     server_socket.sendto(ack_packet, addr)
-    print(f"{len(ack_packet)}")
-    print(f"Ack Sent")
+    #print(f"{len(ack_packet)}")
+    print(f"ACK Sent")
 
 def send_nack(server_socket, addr, packet):
-    nack_packet = create_packet(packet.magic, packet.id, packet.seq_num, packet.final, 2, None)
+    nack_packet = create_packet(packet.magic, packet.client_id, packet.seq_num, packet.final, 2, 'NACK')
     server_socket.sendto(nack_packet, addr)
+    print(f"NACK Sent")
+
+def send_list(server_socket, addr, packet):
+    list_packet = create_packet(packet.magic, packet.client_id, packet.seq_num, packet.final, 2, )
+    server_socket.sendto(list_packet, addr)
+    print(f"List Sent")
+
+def vote_packet(server_socket, addr):
+    vote = create_packet(magic, 1, 1, 1, 1, "Hello")
+    server_socket.sendto(vote, addr)
+    #print(f"Vote Broadcast")
 
 def create_packet(magic, id, seq_num, final, type, data):
     body = data.encode()
     checksum = get_checksum(body)
 
     # Creating the UDP header with 4 fields all of 4 bytes long.
-    # One 'I' size is 4 bytes, so 4 items x 4 = 16 bytes of header.
+    # One 'I' size is 4 bytes, so 4 items x 4  + 2 x 2 bytes = 20 bytes of header.
     header = struct.pack("!IIIIHH", magic, checksum, id, seq_num, final, type)
 
     udp_packet = header + body
     return udp_packet
+
+def encode_packet(packet):
+    data = packet.data.decode()
+    new_packet = create_packet(packet.magic, packet.client_id, packet.seq_num, packet.final, packet.type, data)
+    return new_packet
 
 def decode_packet(packet):
     # Extract everything up to and including the 16th byte as header.
@@ -80,3 +102,9 @@ def decode_packet(packet):
 
     new_packet = udp_packet(magic, checksum, id, seq_num, final, type, data)
     return new_packet
+
+
+def handle_request(server_socket, addr, packet):
+    if packet.data == "List":
+        send_list(addr, packet)
+    
