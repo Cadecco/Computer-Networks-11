@@ -49,7 +49,7 @@ class Chat:
             else:
                 #time.sleep(3)
                 self.buffer.append(packet.data.decode())
-                #handlers.send_ack(server, self.addr, packet)
+                handlers.send_ack(server, self.addr, packet)
             
                 if len(self.buffer) > 0:
                         print(f"Received from ID {self.client_id}, {self.buffer[0]}")
@@ -61,10 +61,16 @@ def client_kill(addr, id):
     chats.pop(id)
     print(f"Client {id} Terminated")
 
-def broadcast():
+def broadcast_vote():
     for client in chats.values():
         addr = client.addr
         handlers.vote_packet(server, addr)
+    print(f"Broadcast Sent")
+
+def broadcast(packet):
+    for client in chats.values():
+        addr = client.addr
+        server.sendto(packet, addr)
     print(f"Broadcast Sent")
 
 def handle_client(addr, packet, chats):
@@ -103,8 +109,12 @@ def server_sender():
     while True:
         message = input("\nEnter Message: ")
 
-        broadcast()
-        print("Sent message to clients: {}".format(message))
+        if(message == "vote"):
+            broadcast_vote()
+        else:
+            packet = handlers.create_packet(magic, 1, 1, 1, 1, message)
+            broadcast(packet)
+            print("Sent message to clients: {}".format(message))
 
 
 def main():
