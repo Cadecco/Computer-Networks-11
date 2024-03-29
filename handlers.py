@@ -49,26 +49,34 @@ class udp_packet:
         self.data = data
 
 
-def send_ack(server_socket, addr, packet):
-    ack_packet = create_packet(packet.magic, packet.client_id, packet.seq_num, packet.final, 1, 'ACK')
+def send_ack(server_socket, addr, packet, id):
+    ack_packet = create_packet(packet.magic, id, packet.seq_num, packet.final, 1, 'ACK')
     server_socket.sendto(ack_packet, addr)
     #print(f"{len(ack_packet)}")
     print(f"ACK Sent")
 
-def send_nack(server_socket, addr, packet):
-    nack_packet = create_packet(packet.magic, packet.client_id, packet.seq_num, packet.final, 2, 'NACK')
+def send_nack(server_socket, addr, packet, id):
+    nack_packet = create_packet(packet.magic, id, packet.seq_num, packet.final, 2, 'NACK')
     server_socket.sendto(nack_packet, addr)
     print(f"NACK Sent")
 
-def send_list(server_socket, addr, packet):
-    list_packet = create_packet(packet.magic, packet.client_id, packet.seq_num, packet.final, 2, )
+def send_list(server_socket, addr, packet, id):
+    list_packet = create_packet(packet.magic, id, packet.seq_num, packet.final, 2, )
     server_socket.sendto(list_packet, addr)
     print(f"List Sent")
 
 def vote_packet(server_socket, addr):
-    vote = create_packet(magic, 1, 1, 1, 1, "Hello")
+    vote = create_packet(magic, 1, 1, 1, 0, "Hello")
     server_socket.sendto(vote, addr)
     #print(f"Vote Broadcast")
+
+
+def resend(socket, addr, sent, received):
+    packet = sent.get(received.seq_num)
+    send_packet = encode_packet(packet)
+    socket.sendto(send_packet, addr)
+    print(f"\nResent to {addr}: {packet.data.decode()} with Sequence No. {packet.seq_num}")
+
 
 def create_packet(magic, id, seq_num, final, type, data):
     body = data.encode()

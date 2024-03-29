@@ -2,6 +2,7 @@ import socket
 import threading
 import time
 import handlers
+import timeout
 
 
 # Initialise array of chats.
@@ -11,11 +12,15 @@ chats = {}
 host = '0.0.0.0'
 port = 61000
 
+server_id = 1234
+
 magic = 17109271
+
+ack_packets = {}
+sent_packets = {}
    
 # Create a UDP socket
 server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
 
 class Chat:
     def __init__(self, addr, packet):
@@ -28,34 +33,48 @@ class Chat:
         self.corrupted_count = 0
         self.incoming_lock = threading.Lock()  
         
-        self.thread_number = threading.Thread(target=self.chat_loop, args=(self.packet, ))
+        self.thread_number = threading.Thread(target=self.chat_receiver, args=(self.packet, ))
         self.thread_number.start()
-  
-    def chat_loop(self, packet):
+
+        self.timer_dict = {}
+        self.sent_packets = {}
+        self.ack_packets = {}
+        self.recv_packets = {}
+
+    def chat_receiver(self, packet):
         with self.incoming_lock:
 
             if(self.corrupted_count > 2):
                 client_kill(self.addr, self.client_id)
             
             if(packet.magic != magic):
-                handlers.send_nack(server, self.addr, packet)
+                handlers.send_nack(server, self.addr, packet,server_id)
+
             corrupted = handlers.corruption_check(packet)
             if(corrupted):
-                handlers.send_nack(server, self.addr, packet)
+                handlers.send_nack(server, self.addr, packet, server_id)
                 self.corrupted_count = self.corrupted_count + 1
 
-            #if(packet.seq_num )
-
-            else:
-                #time.sleep(3)
+            if packet.type == 1:
+                self.recv_packets[packet.seq_num] = packet
+                print(f"")
+                
+            elif packet.type == 0:
+            
                 self.buffer.append(packet.data.decode())
-                #handlers.send_ack(server, self.addr, packet)
+                handlers.send_ack(server, self.addr, packet, server_id)
+                self.recv_packets[packet.seq_num] = packet
             
                 if len(self.buffer) > 0:
                         print(f"Received from ID {self.client_id}, {self.buffer[0]}")
                         self.buffer.pop(0)
 
-                #broadcast()
+    def chat_sender(self, packet):
+        dec_pack = handlers.decode_packet(packet)
+        self.sent_packets[dec_pack.seq_num] = dec_pack
+        self.timer_dict[dec_pack.seq_num] = timeout.timeout(self.addr, dec_pack.seq_num, self.ack_packets, self.sent_packets, server)
+        server.sendto(packet, self.addr)
+
 
 def client_kill(addr, id):
     chats.pop(id)
@@ -63,8 +82,10 @@ def client_kill(addr, id):
 
 def broadcast():
     for client in chats.values():
-        addr = client.addr
-        handlers.vote_packet(server, addr)
+        id = client.client_id
+        to_send = handlers.create_packet(magic, 1, 5, 0, 0, "AHHHHH")
+        chats[id].chat_sender(to_send)
+        
     print(f"Broadcast Sent")
 
 def handle_client(addr, packet, chats):
@@ -74,7 +95,7 @@ def handle_client(addr, packet, chats):
 
     # If there is a chat matching this ID send it to the SR ARQ handler.
     if chat_number:
-        chats[dec_pack.client_id].chat_loop(dec_pack)
+        chats[dec_pack.client_id].chat_receiver(dec_pack)
         
     else:
         # If the chat doesn't exist 
