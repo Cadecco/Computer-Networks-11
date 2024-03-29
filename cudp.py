@@ -1,7 +1,6 @@
 import socket
 import random
 import threading
-import time
 import handlers
 import timeout
 
@@ -45,12 +44,9 @@ server_addr = (host, port)
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 client_socket.settimeout(2)
 
-exception = True
-        
+exception = True     
 sent_packets = {}
-
 timeouts = {}
-
 ack_packets = {}
 
 

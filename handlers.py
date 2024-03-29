@@ -27,6 +27,7 @@ import zlib
 #define MAGIC 17109271
 
 magic = 17109271
+chats = {}
 
 def get_checksum(data):
     checksum = zlib.crc32(data)
@@ -37,6 +38,10 @@ def corruption_check(packet):
     checksum = get_checksum(packet.data)
     corrupted = correct_checksum != checksum
     return corrupted
+
+def client_kill(addr, id):
+    chats.pop(id)
+    print(f"Client {id} Terminated")
 
 class udp_packet:
     def __init__(self, magic, checksum, id, seq_num, final, type, data):

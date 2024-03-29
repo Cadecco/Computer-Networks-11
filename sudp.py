@@ -1,9 +1,8 @@
 import socket
 import threading
-import time
 import handlers
 import timeout
-
+import Chat
 
 # Initialise array of chats.
 chats = {}
@@ -16,69 +15,8 @@ server_id = 1234
 
 magic = 17109271
 
-ack_packets = {}
-sent_packets = {}
-   
 # Create a UDP socket
 server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
-class Chat:
-    def __init__(self, addr, packet):
-        self.addr = addr
-        self.packet = packet
-        self.client_id = packet.client_id
-        self.checksum = packet.checksum
-        self.data = packet.data
-        self.buffer = [] 
-        self.corrupted_count = 0
-        self.incoming_lock = threading.Lock()  
-        
-        self.thread_number = threading.Thread(target=self.chat_receiver, args=(self.packet, ))
-        self.thread_number.start()
-
-        self.timer_dict = {}
-        self.sent_packets = {}
-        self.ack_packets = {}
-        self.recv_packets = {}
-
-    def chat_receiver(self, packet):
-        with self.incoming_lock:
-
-            if(self.corrupted_count > 2):
-                client_kill(self.addr, self.client_id)
-            
-            if(packet.magic != magic):
-                handlers.send_nack(server, self.addr, packet,server_id)
-
-            corrupted = handlers.corruption_check(packet)
-            if(corrupted):
-                handlers.send_nack(server, self.addr, packet, server_id)
-                self.corrupted_count = self.corrupted_count + 1
-
-            if packet.type == 1:
-                self.recv_packets[packet.seq_num] = packet
-                print(f"")
-                
-            elif packet.type == 0:
-            
-                self.buffer.append(packet.data.decode())
-                handlers.send_ack(server, self.addr, packet, server_id)
-                self.recv_packets[packet.seq_num] = packet
-            
-                if len(self.buffer) > 0:
-                        print(f"Received from ID {self.client_id}, {self.buffer[0]}")
-                        self.buffer.pop(0)
-
-    def chat_sender(self, packet):
-        dec_pack = handlers.decode_packet(packet)
-        self.sent_packets[dec_pack.seq_num] = dec_pack
-        self.timer_dict[dec_pack.seq_num] = timeout.timeout(self.addr, dec_pack.seq_num, self.ack_packets, self.sent_packets, server)
-        server.sendto(packet, self.addr)
-
-
-def client_kill(addr, id):
-    chats.pop(id)
-    print(f"Client {id} Terminated")
 
 def broadcast():
     for client in chats.values():
@@ -101,7 +39,7 @@ def handle_client(addr, packet, chats):
         # If the chat doesn't exist 
         print(f"New Connecton from {addr} with ID: {dec_pack.client_id}")
 
-        chats[dec_pack.client_id] = Chat(addr, dec_pack)
+        chats[dec_pack.client_id] = Chat.Chat(addr, dec_pack, server, server_id, magic)
         # Send the packet.
         #chats[addr].chat_loop(data)
     print(f"Number of Clients: {len(chats)}")
