@@ -3,7 +3,7 @@ import random
 import threading
 import handlers
 import timeout
-import functions
+#import functions
 
 # type PcktHeader struct {
 #     Magic        uint32 // 4 bytes
