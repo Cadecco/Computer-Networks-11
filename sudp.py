@@ -3,7 +3,7 @@ import threading
 import handlers
 import timeout
 import Chat
-import functions
+#import functions
 
 # Initialise array of chats.
 chats = {}
@@ -14,21 +14,21 @@ port = 61000
 server_id = 1234
 magic = 17109271
 
-math_funcs = functions.MathFunctions()
-math_funcs.add_function("function1", "4 + 5 * 3 + 4")
-math_funcs.add_function("function2", "x**2 + 3*x + 2")
-math_funcs.add_function("function3", "sin(x)")
+#math_funcs = functions.MathFunctions()
+#math_funcs.add_function("function1", "4 + 5 * 3 + 4")
+#math_funcs.add_function("function2", "x**2 + 3*x + 2")
+#math_funcs.add_function("function3", "sin(x)")
 
 # Create a UDP socket
 server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 def broadcast(message):
 
-    if message == "add function":
-        num = input("\nEnter function number: ")
-        equ = input("\nEnter function: ")
-        math_funcs.functions[num] = math_funcs.add_function(num, equ)
-    elif message == "vote":
+    #if message == "add function":
+        #num = input("\nEnter function number: ")
+        #equ = input("\nEnter function: ")
+        #math_funcs.functions[num] = math_funcs.add_function(num, equ)
+    if message == "vote":
         equ = input("\nEnter function: ")
         for client in chats.values():
             id = client.client_id
