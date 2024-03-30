@@ -56,7 +56,7 @@ class Chat:
 
                 else:
                     # If a packet has been received already procecss it as a duplicate.
-                    print(f"Duplicate packet found {self.buffer[0]}")
+                    print(f"Duplicate Packet Received {self.buffer[0]}")
                     self.buffer.pop(0)
 
     def chat_sender(self, packet):

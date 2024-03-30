@@ -3,6 +3,7 @@ import random
 import threading
 import handlers
 import timeout
+import client_processor
 
 # type PcktHeader struct {
 #     Magic        uint32 // 4 bytes
@@ -38,7 +39,6 @@ seq_num = 1
 final = 0
 type = 0
 
-
 server_addr = (host, port)
 # Create a UDP socket
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -48,6 +48,7 @@ exception = True
 sent_packets = {}
 timeouts = {}
 ack_packets = {}
+recv_packets = {}
 
 
 def client_listener():
@@ -56,14 +57,7 @@ def client_listener():
         try:
             rec_pack, addr = client_socket.recvfrom(1024)
             received = handlers.decode_packet(rec_pack)
-            if received.type == 0:
-                handlers.send_ack(client_socket, server_addr, received, client_id)
-            elif received.type == 1:
-                ack_packets[received.seq_num] = received
-            elif received.type == 2:
-                handlers.resend(client_socket, server_addr, sent_packets, received)
-
-            print(f"\nFrom Server: {received.data.decode()} {received.seq_num}")
+            client_processor.client_processor(received)
         except:
             continue
 
