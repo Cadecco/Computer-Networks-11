@@ -25,6 +25,7 @@ class timeout:
                     received = self.ack_packets.get(self.seq_num)
                     self.lock.release()
                     #print(f"{received}")
-                    if received and received.type == 1:
+                    if received:
                         return
             handlers.resend(self.socket, self.addr, self.sent_packets, self.sent_packets[self.seq_num])
+        return
