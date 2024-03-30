@@ -46,7 +46,7 @@ class Chat:
             elif packet.type == 0:
             
                 self.buffer.append(packet.data.decode())
-                #handlers.send_ack(self.socket, self.addr, packet, self.server_id)
+                handlers.send_ack(self.socket, self.addr, packet, self.server_id)
                 if not self.recv_packets.get(packet.seq_num):
                     self.recv_packets[packet.seq_num] = packet
             

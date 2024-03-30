@@ -58,7 +58,7 @@ def send_ack(server_socket, addr, packet, id):
     ack_packet = create_packet(packet.magic, id, packet.seq_num, packet.final, 1, 'ACK')
     server_socket.sendto(ack_packet, addr)
     #print(f"{len(ack_packet)}")
-    print(f"ACK Sent")
+    print(f"ACK {packet.seq_num}Sent")
 
 def send_nack(server_socket, addr, packet, id):
     nack_packet = create_packet(packet.magic, id, packet.seq_num, packet.final, 2, 'NACK')

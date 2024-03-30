@@ -18,6 +18,9 @@ magic = 17109271
 # Create a UDP socket
 server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
+# Instantiate the vote manager.
+vote_manager = voting.VoteManager(chats)
+
 def broadcast():
     for client in chats.values():
         id = client.client_id
