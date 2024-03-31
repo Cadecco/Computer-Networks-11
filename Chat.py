@@ -1,6 +1,7 @@
 import threading
 import handlers
 import timeout
+import server_processor
 
 class Chat:
     def __init__(self, addr, packet, socket, server_id, magic):
@@ -39,25 +40,7 @@ class Chat:
                 handlers.send_nack(self.socket, self.addr, packet, self.server_id)
                 self.corrupted_count = self.corrupted_count + 1
 
-            if packet.type == 1:
-                self.ack_packets[packet.seq_num] = packet
-                print(f"")
-                
-            elif packet.type == 0:
-            
-                self.buffer.append(packet.data.decode())
-                handlers.send_ack(self.socket, self.addr, packet, self.server_id)
-                if not self.recv_packets.get(packet.seq_num):
-                    self.recv_packets[packet.seq_num] = packet
-            
-                    if len(self.buffer) > 0:
-                        print(f"Received from ID {self.client_id}, {self.buffer[0]}")
-                        self.buffer.pop(0)
-
-                else:
-                    # If a packet has been received already procecss it as a duplicate.
-                    print(f"Duplicate Packet Received {self.buffer[0]}")
-                    self.buffer.pop(0)
+            server_processor.server_processor(packet)
 
     def chat_sender(self, packet):
         dec_pack = handlers.decode_packet(packet)

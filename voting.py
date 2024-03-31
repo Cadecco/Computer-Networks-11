@@ -3,7 +3,7 @@ import time
 
 class poll:
     def __init__(self, chats, question_packet, answer):
-        self.packet_id = question_packet.packet_id
+        self.vote_id = question_packet.vote_id
         self.respones = {}
         self.chats = chats
         self.end = False
@@ -33,7 +33,7 @@ class poll:
         # After this loop has complete or everyone has voted, gather the results 
         # and broadcast them.
         result = self.gather_result()
-        self.vote_manager.broadcast_result(self.packet_id, self.result)
+        self.vote_manager.broadcast_result(self.vote_id, self.result)
         return
         
         
@@ -44,10 +44,10 @@ class VoteManager:
 
     def voting_main(self, received):
         # For a vote request.
-        if received.packet_id == 2:
+        if received.vote_id == 2:
             self.prepare_poll(received)
         # Or a response to a poll.
-        elif received.packet_id == 4:
+        elif received.vote_id == 4:
             self.add_vote(received)
     
     # Get the answer if the received message is a question.
@@ -62,11 +62,11 @@ class VoteManager:
 
     # Add a vote to an existing poll.
     def add_vote(self, received):
-        poll = self.polls[received.packet_id]
+        poll = self.polls[received.vote_id]
         poll.responses[received.client_id] = received.response
 
     # Create new poll after receiving a new question.
     def create_new_poll(self, answer, question_packet):
         new_poll = poll(self.chats, question_packet, answer)
-        self.polls[question_packet.packet_id] = new_poll
+        self.polls[question_packet.vote_id] = new_poll
 
