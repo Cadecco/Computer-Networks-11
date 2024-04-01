@@ -2,30 +2,6 @@ import struct
 import zlib
 import uuid # For generating Vote IDs
 
-
-# type PcktHeader struct {
-#     Magic        uint32 // 4 bytes
-#     Checksum    uint32 // 4 bytes CRC32
-#     ConvID        uint32 // 4 bytes
-#     SequenceNum    uint32 // 4 bytes
-#     Final       uint16 // 2 bytes
-#     Type        uint16 // 2 bytes
-# }
-
-# // Types
-# const (
-#     Data            = 0 //
-#     ACK          = 1
-#     NACK           = 2
-# )
-
-# type Pckt struct {
-#     Header        PcktHeader // 20 bytes
-#     Body           []byte     // N bytes
-    
-#     // 20 + N <= 256 Bytes
-# }
-
 #define MAGIC 17109271
 
 magic = 17109271
@@ -189,6 +165,12 @@ def resend(socket, addr, sent, received):
         message = "Hello Packet"
     elif packet.packet_id == 1:
         message = "Hello Response"
+    elif packet.packet_id == 3:
+        message = packet.question
+    elif packet.packet_id == 4:
+        message = packet.response
+    elif packet.packet_id == 5:
+        message = packet.result
     print(f"\nResent to {addr}: {message} with Sequence No. {packet.seq_num}")
 
 #----------------------------------------------------------------------
@@ -224,9 +206,9 @@ def create_question(magic, id, seq_num, final, type, vote_id, question):
     pip_header = struct.pack("!H", 2)
     question_length = len(question)
     if vote_id == 0:
-        vote_id = 68594030
-    question_length = 28585844
-    pip_body = struct.pack("!II", vote_id, question_length) + question.encode()
+        vote_id = uuid.uuid4()
+    vote_id = vote_id.bytes
+    pip_body = vote_id + struct.pack("!I", question_length)  + question.encode()
 
     pip = pip_header + pip_body
     packet = combine_packet(magic, id, seq_num, final, type, pip)
@@ -236,7 +218,10 @@ def create_question(magic, id, seq_num, final, type, vote_id, question):
 def create_question_broadcast(magic, id, seq_num, final, type, vote_id, question):
     pip_header = struct.pack("!H", 3)
     question_length = len(question)
-    pip_body = struct.pack("!II", vote_id, question_length) + question.encode()
+    if vote_id == 0:
+        vote_id = uuid.uuid4()
+    vote_id = vote_id.bytes
+    pip_body = vote_id + struct.pack("!I", question_length) + question.encode()
 
     pip = pip_header + pip_body
     packet = combine_packet(magic, id, seq_num, final, type, pip)
@@ -245,7 +230,8 @@ def create_question_broadcast(magic, id, seq_num, final, type, vote_id, question
 #4
 def create_vote_response(magic, id, seq_num, final, type, vote_id, response):
     pip_header = struct.pack("!H", 4)
-    pip_body = struct.pack("!IH", vote_id, response)
+    vote_id = vote_id.bytes
+    pip_body = vote_id + str(response).encode()
 
     pip = pip_header + pip_body
     packet = combine_packet(magic, id, seq_num, final, type, pip)
@@ -254,7 +240,8 @@ def create_vote_response(magic, id, seq_num, final, type, vote_id, response):
 #5
 def create_result_broadcast(magic, id, seq_num, final, type, vote_id, result):
     pip_header = struct.pack("!H", 5)
-    pip_body = struct.pack("!IH", vote_id, result)
+    vote_id = vote_id.bytes
+    pip_body = vote_id + str(result).encode()
 
     pip = pip_header + pip_body
     packet = combine_packet(magic, id, seq_num, final, type, pip)
@@ -310,7 +297,7 @@ def encode_packet(p):
             packet = create_question(p.magic, p.client_id, p.seq_num, p.final, p.type, p.vote_id, p.question)
             return packet
         elif p.packet_id == 3:
-            packet = create_question_broadcast(p.magic, p.checksum, p.client_id, p.seq_num, p.final, p.type, p.packet_id, p.vote_id, p.question)
+            packet = create_question_broadcast(p.magic, p.client_id, p.seq_num, p.final, p.type, p.vote_id, p.question)
             return packet
         elif p.packet_id == 4:
             packet = create_vote_response(p.magic, p.client_id, p.seq_num, p.final, p.type, p.vote_id, p.response)
@@ -374,33 +361,37 @@ def decode_packet(packet):
             new_packet = hello_response(magic, checksum, id, seq_num, final, type, pip_header, version, num_features, features)
             return new_packet
         elif pip_header == 2:
-            body = packet[22:30]
-            body = struct.unpack("!II", body)
-            vote_id = body[0]
-            question_length = body[1]
-            question = packet[30:]
+            body = packet[22:42]
+            vote_id = body[0:16]
+            question_length = body[16:20]
+            question = packet[42:]
             question = question.decode()
+            vote_id = uuid.UUID(int=int.from_bytes(vote_id, 'big'))
             new_packet = client_question(magic, checksum, id, seq_num, final, type, pip_header, vote_id, question_length, question)
             return new_packet
         elif pip_header == 3:
-            body = packet[22:30]
-            body = struct.unpack("!II", body)
-            vote_id = body[0]
-            question_length = body[1]
-            question = packet[30:]
+            body = packet[22:42]
+            vote_id = body[0:16]
+            question_length = body[16:20]
+            question = packet[42:]
             question = question.decode()
+            vote_id = uuid.UUID(int=int.from_bytes(vote_id, 'big'))
             new_packet = question_broadcast(magic, checksum, id, seq_num, final, type, pip_header, vote_id, question_length, question)
             return new_packet
         elif pip_header == 4:
-            body = struct.unpack("!IH", body)
-            vote_id = body[0]
-            response = body[1]
+            body = packet[22:38]
+            vote_id = body[0:16]
+            response = packet[38:]
+            response = response.decode()
+            vote_id = uuid.UUID(int=int.from_bytes(vote_id, 'big'))
             new_packet = vote_response(magic, checksum, id, seq_num, final, type, pip_header, vote_id, response)
             return new_packet
         elif pip_header == 5:
-            body =struct.unpack("!IH", body)
-            vote_id = body[0]
-            result = body[1]
+            body = packet[22:38]
+            vote_id = body[0:16]
+            result = packet[38:]
+            result = result.decode()
+            vote_id = uuid.UUID(int=int.from_bytes(vote_id, 'big'))
             new_packet = result_broadcast(magic, checksum, id, seq_num, final, type, pip_header, vote_id, result)
             return new_packet
         elif pip_header == 6:

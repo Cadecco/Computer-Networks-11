@@ -4,30 +4,6 @@ import threading
 import handlers
 import timeout
 import voting
-#import client_processor
-
-# type PcktHeader struct {
-#     Magic        uint32 // 4 bytes
-#     Checksum    uint32 // 4 bytes CRC32
-#     ConvID        uint32 // 4 bytes
-#     SequenceNum    uint32 // 4 bytes
-#     Final       uint16 // 2 bytes
-#     Type        uint16 // 2 bytes
-# }
-
-# // Types
-# const (
-#     Data            = 0 //
-#     ACK          = 1
-#     NACK           = 2
-# )
-
-# type Pckt struct {
-#     Header        PcktHeader // 20 bytes
-#     Body           []byte     // N bytes
-    
-#     // 20 + N <= 256 Bytes
-# }
 
 #define MAGIC 17109271
 
@@ -36,7 +12,7 @@ port = 61000
 # ID for this client, will not change once generated.
 client_id = random.randint(8000, 9000)
 magic = 17109271
-seq_num = 1
+sequence = 0
 final = 0
 type = 0
 
@@ -85,11 +61,14 @@ def startup_sequence():
     sequence = sequence + 1
 
 def client_listener():
+    global sequence
+    lock = threading.Lock()
     while True:
         try:
             rec_pack, addr = client_socket.recvfrom(1024)
             received = handlers.decode_packet(rec_pack)
-            client_processor(received)
+            with lock:
+                client_processor(received)
         except:
             continue
 
@@ -98,6 +77,7 @@ def start_timeout(seq_num):
     #timeouts[seq_num].timeout_loop()
                 
 def client_sender():
+    global sequence
     sequence = 1
     while True:
         type = input("Select Message Type: ")
@@ -141,6 +121,7 @@ if __name__ == "__main__":
 
 def client_processor(received):
     global connected
+    global sequence
     
     # Data
     if (received.type == 0):
@@ -156,13 +137,14 @@ def client_processor(received):
             print(f"Received Question from server: {received.question}")
             handlers.send_ack(client_socket, server_addr, received, client_id)
             answer = voting.get_answer(received.question)
-            my_answer = handlers.create_vote_response(magic, client_id, seq_num, True, 0, received.vote_id, answer)
+            my_answer = handlers.create_vote_response(magic, client_id, sequence, True, 0, received.vote_id, answer)
             client_socket.sendto(my_answer, server_addr)
+            sequence = sequence + 1
             print(f"Sent Response to Poll {received.vote_id}")
             
         elif received.packet_id == 5:
             recv_packets[received.seq_num] = received
-            print(f"\nReceived Vote Result From Server: Vote ID {received.vote_id}\n Result {received.result}")
+            print(f"Received Vote Result From Server:\nVote ID {received.vote_id}\nResult {received.result}")
             handlers.send_ack(client_socket, server_addr, received, client_id)
 
         elif received.packet_id == 6:
