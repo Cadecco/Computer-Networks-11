@@ -79,7 +79,7 @@ class hello_packet:
         self.packet_id = packet_id
         self.version = version
         self.num_features = num_features
-        self.feeatures = features
+        self.features = features
 
 #1
 class hello_response:
@@ -94,7 +94,7 @@ class hello_response:
         self.packet_id = packet_id
         self.version = version
         self.num_features = num_features
-        self.feeatures = features
+        self.features = features
 #2
 class client_question:
     def __init__(self, magic, checksum, id, seq_num, final, type, packet_id, vote_id, question_length, question):
@@ -176,10 +176,6 @@ def send_nack(socket, addr, packet, id):
     socket.sendto(nack_packet, addr)
     print(f"NACK {packet.seq_num} Sent")
 
-def send_list(server_socket, addr, packet, id):
-    list_packet = create_packet(packet.magic, id, packet.seq_num, packet.final, 2, )
-    server_socket.sendto(list_packet, addr)
-    print(f"List Sent")
 
 def resend(socket, addr, sent, received):
     packet = sent.get(received.seq_num)
@@ -189,6 +185,10 @@ def resend(socket, addr, sent, received):
         message = packet.message
     elif packet.packet_id == 2:
         message = packet.question
+    elif packet.packet_id == 0:
+        message = "Hello Packet"
+    elif packet.packet_id == 1:
+        message = "Hello Response"
     print(f"\nResent to {addr}: {message} with Sequence No. {packet.seq_num}")
 
 #----------------------------------------------------------------------
@@ -198,8 +198,9 @@ def create_hello_packet(magic, id, seq_num, final, type, version, num_features, 
     num_features = len(features)
     pip_header = struct.pack("!H", 0)
     pip_body = struct.pack("!IH", version, num_features)
-    for x in features:
-        pip_body = pip_body + features[x].encode()
+    for x in range(num_features):
+        feature = str(features[x])
+        pip_body = pip_body + feature.encode()
 
     pip = pip_header + pip_body
     packet = combine_packet(magic, id, seq_num, final, type, pip)
@@ -209,7 +210,10 @@ def create_hello_packet(magic, id, seq_num, final, type, version, num_features, 
 def create_hello_response(magic, id, seq_num, final, type, version, num_features, features):
     num_features = len(features)
     pip_header = struct.pack("!H", 1)
-    pip_body = struct.pack("!IHH", version, num_features) + features.encode()
+    pip_body = struct.pack("!IH", version, num_features)
+    for x in range(num_features):
+        feature = str(features[x])
+        pip_body = pip_body + feature.encode()
 
     pip = pip_header + pip_body
     packet = combine_packet(magic, id, seq_num, final, type, pip)
@@ -297,10 +301,10 @@ def encode_packet(p):
         packet = create_ACK_NACK(p.magic, p.client_id, p.seq_num, p.final, 2)
     elif p.type == 0:
         if p.packet_id == 0:
-            packet = create_hello_packet(p.magic, p.checksum, p.client_id, p.seq_num, p.final, p.type, p.packet_id, p.version, p.num_features, p.type)
+            packet = create_hello_packet(p.magic, p.client_id, p.seq_num, p.final, p.type,  p.version, p.num_features, p.features)
             return packet
         elif p.packet_id == 1:
-            packet = create_hello_response(p.magic, p.checksum, p.client_id, p.seq_num, p.final, p.type, p.packet_id, p.version, p.num_features, p.type)
+            packet = create_hello_response(p.magic, p.client_id, p.seq_num, p.final, p.type, p.version, p.num_features, p.features)
             return packet
         elif p.packet_id == 2:
             packet = create_question(p.magic, p.client_id, p.seq_num, p.final, p.type, p.vote_id, p.question)
@@ -353,14 +357,20 @@ def decode_packet(packet):
             version = body[0]
             num_features = body[1]
             features = packet[28:]
-            new_packet = hello_packet(magic, checksum, id, seq_num, final, type, pip_header, version, num_features, features)
+            features = features.decode()
+            feature_list = []
+            feature_list = [char for char in features]
+            new_packet = hello_packet(magic, checksum, id, seq_num, final, type, pip_header, version, num_features, feature_list)
             return new_packet
         elif pip_header == 1:
             body = packet[22:28]
             body = struct.unpack("!IH", body)
             version = body[0]
-            num_features == body[1]
+            num_features = body[1]
             features = packet[28:]
+            features = features.decode()
+            feature_list = []
+            feature_list = [char for char in features]
             new_packet = hello_response(magic, checksum, id, seq_num, final, type, pip_header, version, num_features, features)
             return new_packet
         elif pip_header == 2:

@@ -24,6 +24,7 @@ vote_manager = voting.VoteManager(chats, magic, sequence)
 def broadcast(message, sequence):
     for client in chats.values():
         id = client.client_id
+        sequence = client.sequence
         to_send = handlers.create_message(magic, server_id, sequence, True, 0, message)
         chats[id].chat_sender(to_send)
         
@@ -62,14 +63,12 @@ def server_listener():
         handle_client(addr, packet, chats)
 
 def server_sender():
-    sequence = 0
+
     while True:
         message = input("\nEnter Message: ")
 
         broadcast(message, sequence)
         print("Sent message to clients: {}".format(message))
-
-        sequence = sequence + 1
 
 def main():
 

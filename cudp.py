@@ -52,6 +52,7 @@ ack_packets = {}
 recv_packets = {}
 features = []
 num_features = len(features)
+connected = False
 
 def startup_sequence():
     print(f"Enter Features to Add to this Client\n'1' For Simple Math Compute\n'3' For Just Messaging")
@@ -72,6 +73,17 @@ def startup_sequence():
 
     input(f"Press Any Key to Connect to the Server")
 
+    sequence = 0
+
+    packet = handlers.create_hello_packet(magic, client_id, sequence, True, 0, 1, num_features, features)
+    dec_pack = handlers.decode_packet(packet)
+    sent_packets[dec_pack.seq_num] = dec_pack
+    client_socket.sendto(packet, server_addr)
+    print("Sent Hello Message to Server")
+    start_timeout(dec_pack.seq_num)
+
+    sequence = sequence + 1
+
 def client_listener():
     while True:
         try:
@@ -86,15 +98,7 @@ def start_timeout(seq_num):
     #timeouts[seq_num].timeout_loop()
                 
 def client_sender():
-    sequence = 0
-
-    packet = handlers.create_hello_packet(magic, client_id, sequence, True, 0, 1, num_features, features)
-    dec_pack = handlers.decode_packet(packet)
-    sent_packets[dec_pack.seq_num] = dec_pack
-    client_socket.sendto(packet, server_addr)
-    print("Sent Hello Message to Server")
-    start_timeout(dec_pack.seq_num)
-
+    sequence = 1
     while True:
         type = input("Select Message Type: ")
         if type == 'm':
@@ -120,7 +124,7 @@ def client_sender():
             start_timeout(dec_pack.seq_num)
 
         sequence= sequence + 1
-        
+
 def main():
 
     startup_sequence()
@@ -136,14 +140,16 @@ if __name__ == "__main__":
 
 
 def client_processor(received):
+    global connected
     
     # Data
     if (received.type == 0):
         # Deal with differnt data responses from the server.
         if received.packet_id == 1:
             recv_packets[received.seq_num] = received
-            print(f"Received Hello Packet from server: {received.question}")
+            print(f"Received Hello Response Packet from server: {received.seq_num}")
             handlers.send_ack(client_socket, server_addr, received, client_id) 
+            connected = True
 
         elif received.packet_id == 3:
             recv_packets[received.seq_num] = received
