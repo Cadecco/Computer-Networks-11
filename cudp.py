@@ -50,7 +50,27 @@ sent_packets = {}
 timeouts = {}
 ack_packets = {}
 recv_packets = {}
+features = []
+num_features = len(features)
 
+def startup_sequence():
+    print(f"Enter Features to Add to this Client\n'1' For Simple Math Compute\n'3' For Just Messaging")
+    while True:
+        feature_input = input()
+        if feature_input == '1':
+            features.append(feature_input)
+            print(f"Feature added")
+        elif feature_input == '3':
+            features.append(feature_input)
+            print(f"Feature Added")
+        elif feature_input == "":
+            break
+        else:
+            print(f"Invalid Feature Input, Try Again")
+
+    print(f"Client Initialised With Features: {features}")   
+
+    input(f"Press Any Key to Connect to the Server")
 
 def client_listener():
     while True:
@@ -67,6 +87,14 @@ def start_timeout(seq_num):
                 
 def client_sender():
     sequence = 0
+
+    packet = handlers.create_hello_packet(magic, client_id, sequence, True, 0, 1, num_features, features)
+    dec_pack = handlers.decode_packet(packet)
+    sent_packets[dec_pack.seq_num] = dec_pack
+    client_socket.sendto(packet, server_addr)
+    print("Sent Hello Message to Server")
+    start_timeout(dec_pack.seq_num)
+
     while True:
         type = input("Select Message Type: ")
         if type == 'm':
@@ -95,7 +123,7 @@ def client_sender():
         
 def main():
 
-    print(f"Use 'v' to start a Vote, then enter your message\nUse 'm' to send a message, then enter your message")
+    startup_sequence()
 
     send_thread = threading.Thread(target=client_sender, )
     send_thread.start()
@@ -107,7 +135,6 @@ if __name__ == "__main__":
     main()
 
 
-
 def client_processor(received):
     
     # Data
@@ -116,19 +143,20 @@ def client_processor(received):
         if received.packet_id == 1:
             recv_packets[received.seq_num] = received
             print(f"Received Hello Packet from server: {received.question}")
-            handlers.send_ack(client_socket, server_addr, received, client_id)
+            handlers.send_ack(client_socket, server_addr, received, client_id) 
 
         elif received.packet_id == 3:
             recv_packets[received.seq_num] = received
             print(f"Received Question from server: {received.question}")
             handlers.send_ack(client_socket, server_addr, received, client_id)
-            answer = voting.get_answer(received)
-            packet = handlers.create_vote_response(magic, client_id, seq_num, True, 0, received.vote_id, answer)
-            client_socket.sendto(packet, server_addr)
+            answer = voting.get_answer(received.question)
+            my_answer = handlers.create_vote_response(magic, client_id, seq_num, True, 0, received.vote_id, answer)
+            client_socket.sendto(my_answer, server_addr)
+            print(f"Sent Response to Poll {received.vote_id}")
             
         elif received.packet_id == 5:
             recv_packets[received.seq_num] = received
-            print(f"Received Vote Result From Server: Vote ID {received.vote_id}\n Result {received.result}")
+            print(f"\nReceived Vote Result From Server: Vote ID {received.vote_id}\n Result {received.result}")
             handlers.send_ack(client_socket, server_addr, received, client_id)
 
         elif received.packet_id == 6:

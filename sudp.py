@@ -19,7 +19,7 @@ sequence = 0
 server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 # Instantiate the vote manager.
-vote_manager = voting.VoteManager(chats)
+vote_manager = voting.VoteManager(chats, magic, sequence)
 
 def broadcast(message, sequence):
     for client in chats.values():

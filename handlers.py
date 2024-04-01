@@ -197,7 +197,9 @@ def resend(socket, addr, sent, received):
 def create_hello_packet(magic, id, seq_num, final, type, version, num_features, features):
     num_features = len(features)
     pip_header = struct.pack("!H", 0)
-    pip_body = struct.pack("!IHH", version, num_features) + features.encode('ascii')
+    pip_body = struct.pack("!IH", version, num_features)
+    for x in features:
+        pip_body = pip_body + features[x].encode()
 
     pip = pip_header + pip_body
     packet = combine_packet(magic, id, seq_num, final, type, pip)
@@ -230,8 +232,7 @@ def create_question(magic, id, seq_num, final, type, vote_id, question):
 def create_question_broadcast(magic, id, seq_num, final, type, vote_id, question):
     pip_header = struct.pack("!H", 3)
     question_length = len(question)
-    en_question = question.encode()
-    pip_body = struct.pack("!II", vote_id, question_length) + en_question.encode()
+    pip_body = struct.pack("!II", vote_id, question_length) + question.encode()
 
     pip = pip_header + pip_body
     packet = combine_packet(magic, id, seq_num, final, type, pip)
@@ -302,16 +303,16 @@ def encode_packet(p):
             packet = create_hello_response(p.magic, p.checksum, p.client_id, p.seq_num, p.final, p.type, p.packet_id, p.version, p.num_features, p.type)
             return packet
         elif p.packet_id == 2:
-            packet = create_question(p.magic, p.client_id, p.seq_num, p.final, p.type, p.vote_id, p.question.decode())
+            packet = create_question(p.magic, p.client_id, p.seq_num, p.final, p.type, p.vote_id, p.question)
             return packet
         elif p.packet_id == 3:
             packet = create_question_broadcast(p.magic, p.checksum, p.client_id, p.seq_num, p.final, p.type, p.packet_id, p.vote_id, p.question)
             return packet
         elif p.packet_id == 4:
-            packet = create_vote_response(p.magic, p.checksum, p.client_id, p.seq_num, p.final, p.type, p.packet_id, p.vote_id, p.response)
+            packet = create_vote_response(p.magic, p.client_id, p.seq_num, p.final, p.type, p.vote_id, p.response)
             return packet
         elif p.packet_id == 5:
-            packet = create_result_broadcast(p.magic, p.checksum, p.client_id, p.seq_num, p.final, p.type, p.packet_id, p.vote_id, p.result)
+            packet = create_result_broadcast(p.magic, p.client_id, p.seq_num, p.final, p.type, p.vote_id, p.result)
             return packet
         elif p.packet_id == 6:
             packet = create_message(p.magic, p.client_id, p.seq_num, p.final, p.type, p.message)
@@ -368,6 +369,7 @@ def decode_packet(packet):
             vote_id = body[0]
             question_length = body[1]
             question = packet[30:]
+            question = question.decode()
             new_packet = client_question(magic, checksum, id, seq_num, final, type, pip_header, vote_id, question_length, question)
             return new_packet
         elif pip_header == 3:
@@ -376,6 +378,7 @@ def decode_packet(packet):
             vote_id = body[0]
             question_length = body[1]
             question = packet[30:]
+            question = question.decode()
             new_packet = question_broadcast(magic, checksum, id, seq_num, final, type, pip_header, vote_id, question_length, question)
             return new_packet
         elif pip_header == 4:

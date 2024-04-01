@@ -62,14 +62,14 @@ class Chat:
 
             elif packet.packet_id == 2:
                 self.recv_packets[packet.seq_num] = packet
-                print(f"Received Vote Request from Client: {packet.client_id} Question: {packet.question.decode()}")
+                print(f"Received Vote Request from Client: {packet.client_id} Question: {packet.question}")
                 handlers.send_ack(self.socket, self.addr, packet, self.client_id)
                 self.vote_manager.prepare_poll(packet)
                 #compute_answer(packet)
 
             elif packet.packet_id == 4:
                 self.recv_packets[packet.seq_num] = packet
-                print(f"Received Resposne to Question from Client: {packet.client_id} {packet.vote_id}\n Result {packet.result}")
+                print(f"Received Resposne to Question from Client: {packet.client_id} {packet.vote_id}\n Response {packet.response}")
                 handlers.send_ack(self.socket, self.addr, packet, self.client_id)
                 self.vote_manager.add_vote(packet)
 

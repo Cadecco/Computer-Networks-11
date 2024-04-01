@@ -4,14 +4,14 @@ import handlers
 import statistics as stat # For counting votes.
 
 class poll:
-    def __init__(self, chats, question_packet):
+    def __init__(self, chats, question_packet, vote_manager):
         self.vote_id = question_packet.vote_id
         self.responses = {}
         self.chats = chats
         self.end = False
 
         self.result = 0
-        global vote_manager 
+        self.vote_manager = vote_manager
         # Set the length of time of the poll.
         self.timer = time.time() + 5
 
@@ -21,8 +21,10 @@ class poll:
 
     def gather_result(self):
         result = stat.mode(self.responses.values())
+        return result
 
     def poll_timer(self):
+        print(f"\nNew Poll Started {self.vote_id}")
         while(time.time() < self.timer):
             if len(self.responses) == len(self.chats):
                 break
@@ -30,13 +32,18 @@ class poll:
         # After this loop has complete or everyone has voted, gather the results 
         # and broadcast them.
         result = self.gather_result()
-        self.vote_manager.broadcast_result(self.vote_id, self.result)
+        if not result:
+            result = 0
+        print(f"RESULT OF POLL {self.vote_id}: {result}")
+        self.vote_manager.broadcast_result(self.vote_id, result)
         return
         
         
 class VoteManager:
-    def __init__(self, chats):
+    def __init__(self, chats, magic, sequence):
         self.chats = chats
+        self.magic = magic
+        self.sequence = sequence
         self.polls = {}
 
     def voting_main(self, received):
@@ -54,7 +61,7 @@ class VoteManager:
 
         if len(self.chats) >= 2:
             self.create_new_poll(answer, received)
-
+            self.broadcast_vote(received)
         else:
             print(f"Not enough Clients to start a poll")
 
@@ -65,15 +72,29 @@ class VoteManager:
 
     # Create new poll after receiving a new question.
     def create_new_poll(self, answer, question_packet):
-        new_poll = poll(self.chats, question_packet)
+        new_poll = poll(self.chats, question_packet, self)
         self.polls[question_packet.vote_id] = new_poll
 
+    def broadcast_vote(self, received):
+        for client in self.chats.values():
+            id = client.client_id
+            to_send = handlers.create_question_broadcast(self.magic, id, self.sequence, True, 0, received.vote_id, received.question)
+            self.chats[id].chat_sender(to_send)
+        
+        print(f"Vote Broadcast Sent")
+
+    def broadcast_result(self, vote_id, result):
+        for client in self.chats.values():
+            id = client.client_id
+            to_send = handlers.create_result_broadcast(self.magic, id, self.sequence, True, 0, vote_id, result)
+            self.chats[id].chat_sender(to_send)
+        
+        print(f"Vote {vote_id} Resulsts Dispersed")
 
 #-----------------------------------------------------#
 
 def get_answer(question):
     # Split the equation question at the equals sign.
-    question = question.decode()
     sides = question.split('=')
     l_side = sides[0].strip()
     r_side = sides[1].strip()
