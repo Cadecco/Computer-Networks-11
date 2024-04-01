@@ -12,19 +12,19 @@ host = '0.0.0.0'
 port = 61000
 
 server_id = 1234
-
 magic = 17109271
 
+sequence = 0
 # Create a UDP socket
 server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 # Instantiate the vote manager.
 vote_manager = voting.VoteManager(chats)
 
-def broadcast():
+def broadcast(message, sequence):
     for client in chats.values():
         id = client.client_id
-        to_send = handlers.create_packet(magic, 1, 5, 0, 0, "AHHHHH")
+        to_send = handlers.create_message(magic, server_id, sequence, True, 0, message)
         chats[id].chat_sender(to_send)
         
     print(f"Broadcast Sent")
@@ -42,7 +42,7 @@ def handle_client(addr, packet, chats):
         # If the chat doesn't exist 
         print(f"New Connecton from {addr} with ID: {dec_pack.client_id}")
 
-        chats[dec_pack.client_id] = Chat.Chat(addr, dec_pack, server, server_id, magic)
+        chats[dec_pack.client_id] = Chat.Chat(addr, dec_pack, server, server_id, magic, vote_manager)
         # Send the packet.
         #chats[addr].chat_loop(data)
     print(f"Number of Clients: {len(chats)}")
@@ -62,13 +62,14 @@ def server_listener():
         handle_client(addr, packet, chats)
 
 def server_sender():
-
+    sequence = 0
     while True:
         message = input("\nEnter Message: ")
 
-        broadcast()
+        broadcast(message, sequence)
         print("Sent message to clients: {}".format(message))
 
+        sequence = sequence + 1
 
 def main():
 

@@ -1,13 +1,14 @@
 import threading
 import time
+import handlers
+import statistics as stat # For counting votes.
 
 class poll:
-    def __init__(self, chats, question_packet, answer):
+    def __init__(self, chats, question_packet):
         self.vote_id = question_packet.vote_id
-        self.respones = {}
+        self.responses = {}
         self.chats = chats
         self.end = False
-        self.answer = answer
 
         self.result = 0
         global vote_manager 
@@ -15,15 +16,11 @@ class poll:
         self.timer = time.time() + 5
 
         self.lock = threading.Lock()
-        self.poll_timer_thread = threading.thread(target = self.poll_timer, )
-        self.poll_timer_therad.start()
+        self.poll_timer_thread = threading.Thread(target = self.poll_timer, )
+        self.poll_timer_thread.start()
 
     def gather_result(self):
-        yes = 0
-        no = 0
-        
-        #for response in self.responses.values():
-
+        result = stat.mode(self.responses.values())
 
     def poll_timer(self):
         while(time.time() < self.timer):
@@ -53,10 +50,11 @@ class VoteManager:
     # Get the answer if the received message is a question.
     def prepare_poll(self, received):
         question = received.question
-        answer = eval(question)
+        answer = get_answer(question)
 
-        if len(self.chats) > 2:
-            self.create_new_poll(self, answer, received)
+        if len(self.chats) >= 2:
+            self.create_new_poll(answer, received)
+
         else:
             print(f"Not enough Clients to start a poll")
 
@@ -67,6 +65,24 @@ class VoteManager:
 
     # Create new poll after receiving a new question.
     def create_new_poll(self, answer, question_packet):
-        new_poll = poll(self.chats, question_packet, answer)
+        new_poll = poll(self.chats, question_packet)
         self.polls[question_packet.vote_id] = new_poll
+
+
+#-----------------------------------------------------#
+
+def get_answer(question):
+    # Split the equation question at the equals sign.
+    question = question.decode()
+    sides = question.split('=')
+    l_side = sides[0].strip()
+    r_side = sides[1].strip()
+
+    left = eval(l_side)
+    right = eval(r_side)
+
+    if left == right:
+        return True
+    else:
+        return False
 
