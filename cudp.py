@@ -8,7 +8,7 @@ import voting
 #define MAGIC 17109271
 
 host = '127.0.0.1'
-port = 61000
+port = 8080
 # ID for this client, will not change once generated.
 client_id = random.randint(8000, 9000)
 magic = 17109271
@@ -31,15 +31,18 @@ num_features = len(features)
 connected = False
 
 def startup_sequence():
-    print(f"Enter Features to Add to this Client\n'1' For Simple Math Compute\n'3' For Just Messaging")
+    print(f"Enter Features to Add to this Client\n'1' For Simple Math Compute\n'3' For Just Messaging\n'5' For Defecting Vote")
     while True:
         feature_input = input()
         if feature_input == '1':
-            features.append(feature_input)
+            features.append(int(feature_input))
             print(f"Feature added")
         elif feature_input == '3':
-            features.append(feature_input)
+            features.append(int(feature_input))
             print(f"Feature Added")
+        elif feature_input == '5':
+            features.append(int(feature_input))
+            print(f"Defecting Added")
         elif feature_input == "":
             break
         else:
@@ -51,12 +54,12 @@ def startup_sequence():
 
     sequence = 0
 
-    packet = handlers.create_hello_packet(magic, client_id, sequence, sequence, True, 0, 1, num_features, features)
+    packet = handlers.create_hello_packet(magic, client_id, sequence, sequence, 1, 0, 1, num_features, features)
     dec_pack = handlers.decode_packet(packet)
-    sent_packets[dec_pack.seq_num] = dec_pack
+    sent_packets[dec_pack.pack_num] = dec_pack
     client_socket.sendto(packet, server_addr)
     print("Sent Hello Message to Server")
-    start_timeout(dec_pack.seq_num)
+    start_timeout(dec_pack.pack_num)
 
     sequence = sequence + 1
 
@@ -72,9 +75,9 @@ def client_listener():
         except:
             continue
 
-def start_timeout(seq_num):
-    timeouts[seq_num] = timeout.timeout(server_addr, seq_num, ack_packets, sent_packets, client_socket)
-    #timeouts[seq_num].timeout_loop()
+def start_timeout(pack_num):
+    timeouts[pack_num] = timeout.timeout(server_addr, pack_num, ack_packets, sent_packets, client_socket)
+    #timeouts[pack_num].timeout_loop()
                 
 def client_sender():
     global sequence
@@ -84,24 +87,24 @@ def client_sender():
         if type == 'm':
             message = input("Enter your message: ")
 
-            packet = handlers.create_message(magic, client_id, sequence, sequence, True, 0, message)
+            packet = handlers.create_message(magic, client_id, sequence, 0, 1, 0, message)
             dec_pack = handlers.decode_packet(packet)
-            sent_packets[dec_pack.seq_num] = dec_pack
+            sent_packets[dec_pack.pack_num] = dec_pack
 
             client_socket.sendto(packet, server_addr)
             print("Sent message to Server: {}".format(message))
-            start_timeout(dec_pack.seq_num)
+            start_timeout(dec_pack.pack_num)
 
         elif type == 'v':
             question = input("Enter your question: ")
 
-            packet = handlers.create_question(magic, client_id, sequence, sequence, True, 0, 0, question)
+            packet = handlers.create_question(magic, client_id, sequence, 0, 1, 0, 0, question)
             dec_pack = handlers.decode_packet(packet)
-            sent_packets[dec_pack.seq_num] = dec_pack
+            sent_packets[dec_pack.pack_num] = dec_pack
             
             client_socket.sendto(packet, server_addr)
             print("Sent Question to Server: {}". format(question))
-            start_timeout(dec_pack.seq_num)
+            start_timeout(dec_pack.pack_num)
 
         sequence= sequence + 1
 
@@ -127,36 +130,38 @@ def client_processor(received):
     if (received.type == 0):
         # Deal with differnt data responses from the server.
         if received.packet_id == 1:
-            recv_packets[received.seq_num] = received
-            print(f"Received Hello Response Packet from server: {received.seq_num}")
+            recv_packets[received.pack_num] = received
+            print(f"Received Hello Response Packet from server: {received.pack_num}")
             handlers.send_ack(client_socket, server_addr, received, client_id) 
             connected = True
 
         elif received.packet_id == 3:
-            recv_packets[received.seq_num] = received
+            recv_packets[received.pack_num] = received
             print(f"Received Question from server: {received.question}")
             handlers.send_ack(client_socket, server_addr, received, client_id)
             answer = voting.get_answer(received.question)
-            my_answer = handlers.create_vote_response(magic, client_id, sequence, sequence, True, 0, received.vote_id, answer)
+            if 5 in features:
+                answer = not answer
+            my_answer = handlers.create_vote_response(magic, client_id, sequence, 0, 1, 0, received.vote_id, answer)
             client_socket.sendto(my_answer, server_addr)
             sequence = sequence + 1
-            print(f"Sent Response to Poll {received.vote_id}")
+            print(f"Sent Response to Poll {received.vote_id} : ")
             
         elif received.packet_id == 5:
-            recv_packets[received.seq_num] = received
+            recv_packets[received.pack_num] = received
             print(f"Received Vote Result From Server:\nVote ID {received.vote_id}\nResult {received.result}")
             handlers.send_ack(client_socket, server_addr, received, client_id)
 
         elif received.packet_id == 6:
-            recv_packets[received.seq_num] = received
+            recv_packets[received.pack_num] = received
             print(f"Received Message From Server: {received.message}")
             handlers.send_ack(client_socket, server_addr, received, client_id)
 
     # ACK
     elif (received.type == 1):
-        ack_packets[received.seq_num] = received
-        print(f"From Server: ACK {received.seq_num}")
+        ack_packets[received.pack_num] = received
+        print(f"From Server: ACK {received.pack_num}")
 
     # NACK
     elif received.type == 2:
-        print(f"From Server: NACK {received.seq_num}")
+        print(f"From Server: NACK {received.pack_num}")

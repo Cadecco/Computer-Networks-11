@@ -8,6 +8,7 @@ class poll:
         self.vote_id = question_packet.vote_id
         self.responses = {}
         self.chats = chats
+        self.question = question_packet.question
         self.end = False
 
         self.result = 0
@@ -34,7 +35,7 @@ class poll:
         result = self.gather_result()
         if not result:
             result = 0
-        print(f"--------------------\n\nRESULT OF POLL\n{self.vote_id}: {result}\n\n--------------------")
+        print(f"--------------------\n\nRESULT OF POLL\n{self.vote_id}\n{self.question} : {result}\n\n--------------------")
         self.vote_manager.broadcast_result(self.vote_id, result)
         return
         
@@ -79,7 +80,7 @@ class VoteManager:
         for client in self.chats.values():
             id = client.client_id
             seq = client.sequence
-            to_send = handlers.create_question_broadcast(self.magic, id, seq, seq, True, 0, received.vote_id, received.question)
+            to_send = handlers.create_question_broadcast(self.magic, id, seq, 0, True, 0, received.vote_id, received.question)
             self.chats[id].chat_sender(to_send)
         
         print(f"Vote Broadcast Sent")
@@ -88,7 +89,7 @@ class VoteManager:
         for client in self.chats.values():
             id = client.client_id
             seq = client.sequence
-            to_send = handlers.create_result_broadcast(self.magic, id, seq, seq, True, 0, vote_id, result)
+            to_send = handlers.create_result_broadcast(self.magic, id, seq, 0, True, 0, vote_id, result)
             self.chats[id].chat_sender(to_send)
         
         print(f"Vote {vote_id} Resulsts Dispersed")

@@ -9,7 +9,7 @@ chats = {}
 
 # Declared globally here so that the server can be accessed by all the fucntions.
 host = '0.0.0.0'
-port = 61000
+port = 8080
 
 server_id = 1234
 magic = 17109271
@@ -25,7 +25,7 @@ def broadcast(message, sequence):
     for client in chats.values():
         id = client.client_id
         sequence = client.sequence
-        to_send = handlers.create_message(magic, server_id, sequence, sequence, True, 0, message)
+        to_send = handlers.create_message(magic, server_id, sequence, 0, True, 0, message)
         chats[id].chat_sender(to_send)
         
     print(f"Broadcast Sent")
