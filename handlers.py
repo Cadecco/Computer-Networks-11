@@ -5,6 +5,7 @@ import uuid # For generating Vote IDs
 #define MAGIC 17109271
 
 magic = 17109271
+
 chats = {}
 
 def get_checksum(data):
@@ -23,30 +24,33 @@ def client_kill(addr, id):
     print(f"Client {id} Terminated")
 
 class ACK:
-    def __init__(self, magic, checksum, client_id, seq_num, final):
+    def __init__(self, magic, checksum, client_id, pack_num, seq_num, final):
         self.magic = magic
         self.checksum = checksum
         self.client_id = client_id
+        self.pack_num = pack_num
         self.seq_num = seq_num
         self.final = final
         self.type = 1
 
 class NACK:
-    def __init__(self, magic, checksum, client_id, seq_num, final):
+    def __init__(self, magic, checksum, client_id, pack_num, seq_num, final):
         self.magic = magic
         self.checksum = checksum
         self.client_id = client_id
+        self.pack_num = pack_num
         self.seq_num = seq_num
         self.final = final
         self.type = 2
 
 #0
 class hello_packet:
-    def __init__(self, magic, checksum, id, seq_num, final, type, packet_id, version, num_features, features):
+    def __init__(self, magic, checksum, id, pack_num, seq_num, final, type, packet_id, version, num_features, features):
         # TXP Protocol
         self.magic = magic
         self.checksum = checksum
         self.client_id = id
+        self.pack_num = pack_num
         self.seq_num = seq_num
         self.final = final
         self.type = type
@@ -59,10 +63,11 @@ class hello_packet:
 
 #1
 class hello_response:
-    def __init__(self, magic, checksum, id, seq_num, final, type, packet_id, version, num_features, features):
+    def __init__(self, magic, checksum, id, pack_num, seq_num, final, type, packet_id, version, num_features, features):
         self.magic = magic
         self.checksum = checksum
         self.client_id = id
+        self.pack_num = pack_num
         self.seq_num = seq_num
         self.final = final
         self.type = type
@@ -73,10 +78,11 @@ class hello_response:
         self.features = features
 #2
 class client_question:
-    def __init__(self, magic, checksum, id, seq_num, final, type, packet_id, vote_id, question_length, question):
+    def __init__(self, magic, checksum, id, pack_num, seq_num, final, type, packet_id, vote_id, question_length, question):
         self.magic = magic
         self.checksum = checksum
         self.client_id = id
+        self.pack_num = pack_num
         self.seq_num = seq_num
         self.final = final
         self.type = type
@@ -88,10 +94,11 @@ class client_question:
 
 #3
 class question_broadcast:
-    def __init__(self, magic, checksum, id, seq_num, final, type, packet_id, vote_id, question_length, question):
+    def __init__(self, magic, checksum, id, pack_num, seq_num, final, type, packet_id, vote_id, question_length, question):
         self.magic = magic
         self.checksum = checksum
         self.client_id = id
+        self.pack_num = pack_num
         self.seq_num = seq_num
         self.final = final
         self.type = type
@@ -103,10 +110,11 @@ class question_broadcast:
 
 #4
 class vote_response:
-    def __init__(self, magic, checksum, id, seq_num, final, type, packet_id, vote_id, response):
+    def __init__(self, magic, checksum, id, pack_num, seq_num, final, type, packet_id, vote_id, response):
         self.magic = magic
         self.checksum = checksum
         self.client_id = id
+        self.pack_num = pack_num
         self.seq_num = seq_num
         self.final = final
         self.type = type
@@ -117,10 +125,11 @@ class vote_response:
 
 #5
 class result_broadcast:
-    def __init__(self, magic, checksum, id, seq_num, final, type, packet_id, vote_id, result):
+    def __init__(self, magic, checksum, id, pack_num, seq_num, final, type, packet_id, vote_id, result):
         self.magic = magic
         self.checksum = checksum
         self.client_id = id
+        self.pack_num = pack_num
         self.seq_num = seq_num
         self.final = final
         self.type = type
@@ -131,10 +140,11 @@ class result_broadcast:
 
 #6
 class message_packet:
-    def __init__(self, magic, checksum, id, seq_num, final, type, packet_id, message):
+    def __init__(self, magic, checksum, id, pack_num, seq_num, final, type, packet_id, message):
         self.magic = magic
         self.checksum = checksum
         self.client_id = id
+        self.pack_num = pack_num
         self.seq_num = seq_num
         self.final = final
         self.type = type
@@ -143,12 +153,12 @@ class message_packet:
         self.message = message
 
 def send_ack(socket, addr, packet, id):
-    ack_packet = create_ACK_NACK(packet.magic, id, packet.seq_num, packet.final, 1)
+    ack_packet = create_ACK_NACK(packet.magic, id, packet.pack_num, packet.seq_num, packet.final, 1)
     socket.sendto(ack_packet, addr)
     print(f"ACK {packet.seq_num} Sent to {addr}")
 
 def send_nack(socket, addr, packet, id):
-    nack_packet = create_ACK_NACK(packet.magic, id, packet.seq_num, packet.final, 2)
+    nack_packet = create_ACK_NACK(packet.magic, id, packet.pack_num, packet.seq_num, packet.final, 2)
     socket.sendto(nack_packet, addr)
     print(f"NACK {packet.seq_num} Sent")
 
@@ -176,7 +186,7 @@ def resend(socket, addr, sent, received):
 #----------------------------------------------------------------------
 
 #0
-def create_hello_packet(magic, id, seq_num, final, type, version, num_features, features):
+def create_hello_packet(magic, id, pack_num, seq_num, final, type, version, num_features, features):
     num_features = len(features)
     pip_header = struct.pack("!H", 0)
     pip_body = struct.pack("!IH", version, num_features)
@@ -185,11 +195,11 @@ def create_hello_packet(magic, id, seq_num, final, type, version, num_features, 
         pip_body = pip_body + feature.encode()
 
     pip = pip_header + pip_body
-    packet = combine_packet(magic, id, seq_num, final, type, pip)
+    packet = combine_packet(magic, id, pack_num, seq_num, final, type, pip)
     return packet
 
 #1
-def create_hello_response(magic, id, seq_num, final, type, version, num_features, features):
+def create_hello_response(magic, id, pack_num, seq_num, final, type, version, num_features, features):
     num_features = len(features)
     pip_header = struct.pack("!H", 1)
     pip_body = struct.pack("!IH", version, num_features)
@@ -198,11 +208,11 @@ def create_hello_response(magic, id, seq_num, final, type, version, num_features
         pip_body = pip_body + feature.encode()
 
     pip = pip_header + pip_body
-    packet = combine_packet(magic, id, seq_num, final, type, pip)
+    packet = combine_packet(magic, id, pack_num, seq_num, final, type, pip)
     return packet
 
 #2
-def create_question(magic, id, seq_num, final, type, vote_id, question):
+def create_question(magic, id, pack_num, seq_num, final, type, vote_id, question):
     pip_header = struct.pack("!H", 2)
     question_length = len(question)
     if vote_id == 0:
@@ -211,11 +221,11 @@ def create_question(magic, id, seq_num, final, type, vote_id, question):
     pip_body = vote_id + struct.pack("!I", question_length)  + question.encode()
 
     pip = pip_header + pip_body
-    packet = combine_packet(magic, id, seq_num, final, type, pip)
+    packet = combine_packet(magic, id, pack_num, seq_num, final, type, pip)
     return packet
 
 #3
-def create_question_broadcast(magic, id, seq_num, final, type, vote_id, question):
+def create_question_broadcast(magic, id, pack_num, seq_num, final, type, vote_id, question):
     pip_header = struct.pack("!H", 3)
     question_length = len(question)
     if vote_id == 0:
@@ -224,180 +234,181 @@ def create_question_broadcast(magic, id, seq_num, final, type, vote_id, question
     pip_body = vote_id + struct.pack("!I", question_length) + question.encode()
 
     pip = pip_header + pip_body
-    packet = combine_packet(magic, id, seq_num, final, type, pip)
+    packet = combine_packet(magic, id, pack_num, seq_num, final, type, pip)
     return packet
 
 #4
-def create_vote_response(magic, id, seq_num, final, type, vote_id, response):
+def create_vote_response(magic, id, pack_num, seq_num, final, type, vote_id, response):
     pip_header = struct.pack("!H", 4)
     vote_id = vote_id.bytes
     pip_body = vote_id + str(response).encode()
 
     pip = pip_header + pip_body
-    packet = combine_packet(magic, id, seq_num, final, type, pip)
+    packet = combine_packet(magic, id, pack_num, seq_num, final, type, pip)
     return packet
 
 #5
-def create_result_broadcast(magic, id, seq_num, final, type, vote_id, result):
+def create_result_broadcast(magic, id, pack_num, seq_num, final, type, vote_id, result):
     pip_header = struct.pack("!H", 5)
     vote_id = vote_id.bytes
     pip_body = vote_id + str(result).encode()
 
     pip = pip_header + pip_body
-    packet = combine_packet(magic, id, seq_num, final, type, pip)
+    packet = combine_packet(magic, id, pack_num, seq_num, final, type, pip)
     return packet
 
 #6
-def create_message(magic, id, seq_num, final, type, message):
+def create_message(magic, id, pack_num, seq_num, final, type, message):
     pip_header = struct.pack("!H", 6)
     pip_body = message.encode()
 
     pip = pip_header + pip_body
-    packet = combine_packet(magic, id, seq_num, final, type, pip)
+    packet = combine_packet(magic, id, pack_num, seq_num, final, type, pip)
     return packet
 
 
 #----------------------------------------------------------------------
 
-def create_ACK_NACK(magic, id, seq_num, final, type):
-    no_checksum_head = struct.pack("!IIHH", id, seq_num, final, type)
+def create_ACK_NACK(magic, id, pack_num, seq_num, final, type):
+    no_checksum_head = struct.pack("!IIIHH", id, pack_num, seq_num, final, type)
     checksum = get_checksum(no_checksum_head)
 
-    header = struct.pack("!IIIIHH", magic, checksum, id, seq_num, final, type)
+    header = struct.pack("!IIIIIHH", magic, checksum, id, pack_num, seq_num, final, type)
     return header
 
-def combine_packet(magic, id, seq_num, final, type, pip):
+def combine_packet(magic, id, pack_num, seq_num, final, type, pip):
 
     # Get the checksum on everything after the magic and checksum.
-    no_checksum_head = struct.pack("!IIHH", id, seq_num, final, type)
+    no_checksum_head = struct.pack("!IIIHH", id, pack_num, seq_num, final, type)
     no_checksum = no_checksum_head + pip
 
     checksum = get_checksum(no_checksum)
     # Creating the UDP header with 4 fields all of 4 bytes long.
     # One 'I' size is 4 bytes, so 4 items x 4  + 2 x 2 bytes = 20 bytes of header.
-    header = struct.pack("!IIIIHH", magic, checksum, id, seq_num, final, type)
+    header = struct.pack("!IIIIIHH", magic, checksum, id, pack_num, seq_num, final, type)
 
     udp_packet = header + pip
     return udp_packet
 
 def encode_packet(p):
     if p.type == 1:
-        packet = create_ACK_NACK(p.magic, p.client_id, p.seq_num, p.final, 1)
+        packet = create_ACK_NACK(p.magic, p.client_id, p.pack_num, p.seq_num, p.final, 1)
         return packet
     elif p.type == 2:
-        packet = create_ACK_NACK(p.magic, p.client_id, p.seq_num, p.final, 2)
+        packet = create_ACK_NACK(p.magic, p.client_id, p.pack_num, p.seq_num, p.final, 2)
     elif p.type == 0:
         if p.packet_id == 0:
-            packet = create_hello_packet(p.magic, p.client_id, p.seq_num, p.final, p.type,  p.version, p.num_features, p.features)
+            packet = create_hello_packet(p.magic, p.client_id, p.pack_num, p.seq_num, p.final, p.type,  p.version, p.num_features, p.features)
             return packet
         elif p.packet_id == 1:
-            packet = create_hello_response(p.magic, p.client_id, p.seq_num, p.final, p.type, p.version, p.num_features, p.features)
+            packet = create_hello_response(p.magic, p.client_id, p.pack_num, p.seq_num, p.final, p.type, p.version, p.num_features, p.features)
             return packet
         elif p.packet_id == 2:
-            packet = create_question(p.magic, p.client_id, p.seq_num, p.final, p.type, p.vote_id, p.question)
+            packet = create_question(p.magic, p.client_id, p.pack_num, p.seq_num, p.final, p.type, p.vote_id, p.question)
             return packet
         elif p.packet_id == 3:
-            packet = create_question_broadcast(p.magic, p.client_id, p.seq_num, p.final, p.type, p.vote_id, p.question)
+            packet = create_question_broadcast(p.magic, p.client_id, p.pack_num, p.seq_num, p.final, p.type, p.vote_id, p.question)
             return packet
         elif p.packet_id == 4:
-            packet = create_vote_response(p.magic, p.client_id, p.seq_num, p.final, p.type, p.vote_id, p.response)
+            packet = create_vote_response(p.magic, p.client_id, p.pack_num, p.seq_num, p.final, p.type, p.vote_id, p.response)
             return packet
         elif p.packet_id == 5:
-            packet = create_result_broadcast(p.magic, p.client_id, p.seq_num, p.final, p.type, p.vote_id, p.result)
+            packet = create_result_broadcast(p.magic, p.client_id, p.pack_num, p.seq_num, p.final, p.type, p.vote_id, p.result)
             return packet
         elif p.packet_id == 6:
-            packet = create_message(p.magic, p.client_id, p.seq_num, p.final, p.type, p.message)
+            packet = create_message(p.magic, p.client_id, p.pack_num, p.seq_num, p.final, p.type, p.message)
             return packet
 
 
 def decode_packet(packet):
     # Extract everything up to and including the 16th byte as header.
-    header = packet[:20]
+    header = packet[:24]
     # Everything After this is the data that was sent.
-    pip_header = packet[20:22]
+    pip_header = packet[24:26]
     if pip_header:
         pip_header = struct.unpack("!H", pip_header)
         pip_header = pip_header[0]
-        body = packet[22:]
-    header = struct.unpack("!IIIIHH", header)
+        body = packet[26:]
+    header = struct.unpack("!IIIIIHH", header)
     # The third entry in the header is the checksum.
     magic = header[0]
     checksum = header[1]
     id = header[2]
-    seq_num = header[3]
-    final = header[4]
-    type = header[5]
+    pack_num = header[3]
+    seq_num = header[4]
+    final = header[5]
+    type = header[6]
 
     if type == 1:
-        new_packet = ACK(magic, checksum, id, seq_num, final)
+        new_packet = ACK(magic, checksum, id, pack_num, seq_num, final)
         return new_packet
 
     elif type == 2:
-        new_packet = NACK(magic, checksum, id, seq_num, final)
+        new_packet = NACK(magic, checksum, id, pack_num, seq_num, final)
         return new_packet
 
     elif type == 0:
 
         if pip_header == 0:
-            body = packet[22:28]
+            body = packet[26:32]
             body = struct.unpack("!IH", body)
             version = body[0]
             num_features = body[1]
-            features = packet[28:]
+            features = packet[32:]
             features = features.decode()
             feature_list = []
             feature_list = [char for char in features]
-            new_packet = hello_packet(magic, checksum, id, seq_num, final, type, pip_header, version, num_features, feature_list)
+            new_packet = hello_packet(magic, checksum, id, pack_num, seq_num, final, type, pip_header, version, num_features, feature_list)
             return new_packet
         elif pip_header == 1:
-            body = packet[22:28]
+            body = packet[26:32]
             body = struct.unpack("!IH", body)
             version = body[0]
             num_features = body[1]
-            features = packet[28:]
+            features = packet[32:]
             features = features.decode()
             feature_list = []
             feature_list = [char for char in features]
-            new_packet = hello_response(magic, checksum, id, seq_num, final, type, pip_header, version, num_features, features)
+            new_packet = hello_response(magic, checksum, id, pack_num, seq_num, final, type, pip_header, version, num_features, features)
             return new_packet
         elif pip_header == 2:
-            body = packet[22:42]
+            body = packet[26:46]
             vote_id = body[0:16]
             question_length = body[16:20]
-            question = packet[42:]
+            question = packet[46:]
             question = question.decode()
             vote_id = uuid.UUID(int=int.from_bytes(vote_id, 'big'))
-            new_packet = client_question(magic, checksum, id, seq_num, final, type, pip_header, vote_id, question_length, question)
+            new_packet = client_question(magic, checksum, id, pack_num, seq_num, final, type, pip_header, vote_id, question_length, question)
             return new_packet
         elif pip_header == 3:
-            body = packet[22:42]
+            body = packet[26:46]
             vote_id = body[0:16]
             question_length = body[16:20]
-            question = packet[42:]
+            question = packet[46:]
             question = question.decode()
             vote_id = uuid.UUID(int=int.from_bytes(vote_id, 'big'))
-            new_packet = question_broadcast(magic, checksum, id, seq_num, final, type, pip_header, vote_id, question_length, question)
+            new_packet = question_broadcast(magic, checksum, id, pack_num, seq_num, final, type, pip_header, vote_id, question_length, question)
             return new_packet
         elif pip_header == 4:
-            body = packet[22:38]
+            body = packet[26:42]
             vote_id = body[0:16]
-            response = packet[38:]
+            response = packet[42:]
             response = response.decode()
             vote_id = uuid.UUID(int=int.from_bytes(vote_id, 'big'))
-            new_packet = vote_response(magic, checksum, id, seq_num, final, type, pip_header, vote_id, response)
+            new_packet = vote_response(magic, checksum, id, pack_num, seq_num, final, type, pip_header, vote_id, response)
             return new_packet
         elif pip_header == 5:
-            body = packet[22:38]
+            body = packet[26:42]
             vote_id = body[0:16]
-            result = packet[38:]
+            result = packet[42:]
             result = result.decode()
             vote_id = uuid.UUID(int=int.from_bytes(vote_id, 'big'))
-            new_packet = result_broadcast(magic, checksum, id, seq_num, final, type, pip_header, vote_id, result)
+            new_packet = result_broadcast(magic, checksum, id, pack_num, seq_num, final, type, pip_header, vote_id, result)
             return new_packet
         elif pip_header == 6:
-            message = packet[22:]
+            message = packet[26:]
             message = message.decode()
-            new_packet = message_packet(magic, checksum, id, seq_num, final, type, pip_header, message)
+            new_packet = message_packet(magic, checksum, id, pack_num, seq_num, final, type, pip_header, message)
             return new_packet
 
 

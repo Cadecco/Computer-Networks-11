@@ -25,7 +25,7 @@ def broadcast(message, sequence):
     for client in chats.values():
         id = client.client_id
         sequence = client.sequence
-        to_send = handlers.create_message(magic, server_id, sequence, True, 0, message)
+        to_send = handlers.create_message(magic, server_id, sequence, sequence, True, 0, message)
         chats[id].chat_sender(to_send)
         
     print(f"Broadcast Sent")

@@ -79,7 +79,7 @@ class VoteManager:
         for client in self.chats.values():
             id = client.client_id
             seq = client.sequence
-            to_send = handlers.create_question_broadcast(self.magic, id, seq, True, 0, received.vote_id, received.question)
+            to_send = handlers.create_question_broadcast(self.magic, id, seq, seq, True, 0, received.vote_id, received.question)
             self.chats[id].chat_sender(to_send)
         
         print(f"Vote Broadcast Sent")
@@ -88,7 +88,7 @@ class VoteManager:
         for client in self.chats.values():
             id = client.client_id
             seq = client.sequence
-            to_send = handlers.create_result_broadcast(self.magic, id, seq, True, 0, vote_id, result)
+            to_send = handlers.create_result_broadcast(self.magic, id, seq, seq, True, 0, vote_id, result)
             self.chats[id].chat_sender(to_send)
         
         print(f"Vote {vote_id} Resulsts Dispersed")

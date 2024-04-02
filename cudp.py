@@ -51,7 +51,7 @@ def startup_sequence():
 
     sequence = 0
 
-    packet = handlers.create_hello_packet(magic, client_id, sequence, True, 0, 1, num_features, features)
+    packet = handlers.create_hello_packet(magic, client_id, sequence, sequence, True, 0, 1, num_features, features)
     dec_pack = handlers.decode_packet(packet)
     sent_packets[dec_pack.seq_num] = dec_pack
     client_socket.sendto(packet, server_addr)
@@ -84,7 +84,7 @@ def client_sender():
         if type == 'm':
             message = input("Enter your message: ")
 
-            packet = handlers.create_message(magic, client_id, sequence, True, 0, message)
+            packet = handlers.create_message(magic, client_id, sequence, sequence, True, 0, message)
             dec_pack = handlers.decode_packet(packet)
             sent_packets[dec_pack.seq_num] = dec_pack
 
@@ -95,7 +95,7 @@ def client_sender():
         elif type == 'v':
             question = input("Enter your question: ")
 
-            packet = handlers.create_question(magic, client_id, sequence, True, 0, 0, question)
+            packet = handlers.create_question(magic, client_id, sequence, sequence, True, 0, 0, question)
             dec_pack = handlers.decode_packet(packet)
             sent_packets[dec_pack.seq_num] = dec_pack
             
@@ -137,7 +137,7 @@ def client_processor(received):
             print(f"Received Question from server: {received.question}")
             handlers.send_ack(client_socket, server_addr, received, client_id)
             answer = voting.get_answer(received.question)
-            my_answer = handlers.create_vote_response(magic, client_id, sequence, True, 0, received.vote_id, answer)
+            my_answer = handlers.create_vote_response(magic, client_id, sequence, sequence, True, 0, received.vote_id, answer)
             client_socket.sendto(my_answer, server_addr)
             sequence = sequence + 1
             print(f"Sent Response to Poll {received.vote_id}")

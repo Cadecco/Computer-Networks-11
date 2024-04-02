@@ -15,6 +15,7 @@ class Chat:
         self.buffer = [] 
         self.corrupted_count = 0
         self.sequence = 0
+        self.pack_num = 0
         self.connected = False
         self.features = []
         self.incoming_lock = threading.Lock()  
@@ -65,7 +66,7 @@ class Chat:
                 self.recv_packets[packet.seq_num] = packet
                 print(f"Received Hello Packet from Client {packet.client_id} ")
                 handlers.send_ack(self.socket, self.addr, packet, self.client_id)
-                hello_response = handlers.create_hello_response(self.magic, self.client_id, self.sequence, True, 0, 1, packet.num_features, packet.features)
+                hello_response = handlers.create_hello_response(self.magic, self.client_id, self.sequence, self.sequence, True, 0, 1, packet.num_features, packet.features)
                 self.features = packet.features
                 self.chat_sender(hello_response)
                 print(f"Sent Hello Response to {self.client_id}")
