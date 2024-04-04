@@ -49,7 +49,6 @@ class Chat:
             self.chat_processor(packet)
 
     def chat_sender(self, packet):
-        print(f"Sent")
         dec_pack = handlers.decode_packet(packet)
         self.sent_packets[dec_pack.pack_num] = dec_pack
         self.socket.sendto(packet, self.addr)
@@ -68,6 +67,7 @@ class Chat:
             if packet.packet_id == 0:
                 self.recv_packets[packet.pack_num] = packet
                 print(f"Received Hello Packet from Client {packet.client_id} ")
+                print(f"Client Features {packet.features}")
                 handlers.send_ack(self.socket, self.addr, packet, self.client_id)
                 hello_response = handlers.create_hello_response(self.magic, self.client_id, self.sequence, 0, True, 0, 1, packet.num_features, packet.features)
                 self.features = packet.features
@@ -95,6 +95,12 @@ class Chat:
                     self.recv_packets[packet.pack_num] = packet
                     print(f"From Client {packet.client_id} : {packet.message}")
                     handlers.send_ack(self.socket, self.addr, packet, self.client_id)
+            
+            elif packet.packet_id == 0x12:
+                self.recv_packets[packet.pack_num] = packet
+                print(f"Received Client Packet: {packet.client_id}")
+                handlers.send_ack(self.socket, self.addr, packet, self.client_id)
+
 
         # ACK
         elif (packet.type == 3):
@@ -102,6 +108,7 @@ class Chat:
             # Create a SYN ACK
             packet = handlers.create_ACK_NACK(packet.magic, self.client_id, 0, 0, 1, 4)
             self.chat_sender(packet)
+            print(f"SENT SYNACK")
 
         elif (packet.type == 0xFFFE):
             print(f"\nReceived Ping")

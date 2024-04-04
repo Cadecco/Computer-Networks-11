@@ -2,11 +2,7 @@ import struct
 import zlib
 import uuid # For generating Vote IDs
 
-#define MAGIC 17109271
-
 magic = 0x01051117
-
-
 chats = {}
 
 def get_checksum(data):
@@ -193,6 +189,37 @@ class message_packet:
 
         self.packet_id = packet_id
         self.message = message
+
+class client_packet:
+    def __init__(self, magic, checksum, id, pack_num, seq_num, final, type, packet_id, client, num_features, features):
+        # TXP Protocol
+        self.magic = magic
+        self.checksum = checksum
+        self.client_id = id
+        self.pack_num = pack_num
+        self.seq_num = seq_num
+        self.final = final
+        self.type = type
+
+        # Consensus Protocol
+        self.packet_id = packet_id
+        self.version == client
+        self.num_features = num_features
+        self.features = features
+
+class unknown:
+    def __init__(self, magic, checksum, id, pack_num, seq_num, final, type, packet_id):
+        # TXP Protocol
+        self.magic = magic
+        self.checksum = checksum
+        self.client_id = id
+        self.pack_num = pack_num
+        self.seq_num = seq_num
+        self.final = final
+        self.type = type
+
+        # Consensus Protocol
+        self.packet_id = packet_id
 
 def send_ack(socket, addr, packet, id):
     ack_packet = create_ACK_NACK(packet.magic, id, packet.pack_num, packet.seq_num, packet.final, 1)
@@ -476,10 +503,24 @@ def decode_packet(packet):
             message = message.decode()
             new_packet = message_packet(magic, checksum, id, pack_num, seq_num, final, type, pip_header, message)
             return new_packet
+        elif pip_header == 0x12:
+            body = packet[26:34]
+            body = struct.unpack("!II", body)
+            id = body[0]
+            num_features = body[1]
+            features = packet[34:]
+            feature_list = []
+            feature_list = struct.unpack('!{}H'.format(num_features), features)
+            new_packet = client_packet(magic, checksum, id, pack_num, seq_num, final, type, pip_header, id, num_features, feature_list)
+            return new_packet
+            
 
         else:
             print(f"Unknown Packet Id, Unable to decode")
+            new_packet = unknown(magic, checksum, id, seq_num, final, type, pip_header)
+            return packet
 
     else:
         print(f"{packet}")
         print(f"Unkown Packet Type")
+

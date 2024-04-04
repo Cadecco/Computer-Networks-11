@@ -18,7 +18,9 @@ sequence = 0
 final = 0
 type = 0
 
+#host = socket.gethostbyname("33D03-project.college")
 server_addr = (host, port)
+print(f"{host}")
 # Create a UDP socket
 client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 client_socket.settimeout(2)
@@ -33,6 +35,8 @@ num_features = len(features)
 connected = False
 
 def startup_sequence():
+
+
     print(f"Enter Features to Add to this Client\n'1' For Simple Math Compute\n'3' For Just Messaging\n'5' For Defecting Vote")
     while True:
         feature_input = input()
@@ -59,8 +63,8 @@ def startup_sequence():
     packet = handlers.create_ACK_NACK(magic, 0, 0, 0, 1, 0xFFFE)
     dec_pack = handlers.decode_packet(packet)
     sent_packets[dec_pack.pack_num] = dec_pack
-    client_socket.sendto(packet, server_addr)
-    print("Sent Hello Message to Server")
+    #client_socket.sendto(packet, server_addr)
+    #print("Sent Ping to Server")
     #start_timeout(dec_pack.pack_num)
 
     sequence = sequence + 1
@@ -70,18 +74,21 @@ def client_listener():
     lock = threading.Lock()
     while True:
         time.sleep(1)
+        #print(f"{globals.client_id}")
+        if globals.client_id == 0:
+                packet = handlers.create_ACK_NACK(magic, 0, 0, 0, 1, 0xFFFE)
+                client_socket.sendto(packet, server_addr)
+                print(f"Sent Ping to Server")
+                time.sleep(1)
+
         try:
             rec_pack, addr = client_socket.recvfrom(1024)
             #print(f"Received {rec_pack}")
             received = handlers.decode_packet(rec_pack)
-            print(f"Server sent ID {received.client_id}")
-            print(f"{received}")
+            #print(f"Server sent ID {received.client_id}")
+            #print(f"{received}")
             with lock:
                 client_processor(received)
-            while globals.client_id == 0:
-                packet = handlers.create_ACK_NACK(magic, 0, 0, 0, 1, 0xFFFE)
-                client_socket.sendto(packet, server_addr)
-                print(f"Sent Ping")
         except:
             continue
 
@@ -96,26 +103,33 @@ def client_sender():
     while True:
         type = input("Select Message Type: ")
         if type == 'm':
-            message = input("Enter your message: ")
+            if 3 in features:
+                message = input("Enter your message: ")
 
-            packet = handlers.create_message(magic, globals.client_id, sequence, 0, 1, 0, message)
-            dec_pack = handlers.decode_packet(packet)
-            sent_packets[dec_pack.pack_num] = dec_pack
+                packet = handlers.create_message(magic, globals.client_id, sequence, 0, 1, 0, message)
+                dec_pack = handlers.decode_packet(packet)
+                sent_packets[dec_pack.pack_num] = dec_pack
 
-            client_socket.sendto(packet, server_addr)
-            print("Sent message to Server: {}".format(message))
-            start_timeout(dec_pack.pack_num)
+                client_socket.sendto(packet, server_addr)
+                print("Sent message to Server: {}".format(message))
+                start_timeout(dec_pack.pack_num)
+            else:
+                print("Messaging Feature not installed on this Client")
+                continue
 
         elif type == 'v':
-            question = input("Enter your question: ")
+            if 1 in features:
+                question = input("Enter your question: ")
 
-            packet = handlers.create_question(magic, globals.client_id, sequence, 0, 1, 0, 0, question)
-            dec_pack = handlers.decode_packet(packet)
-            sent_packets[dec_pack.pack_num] = dec_pack
-            
-            client_socket.sendto(packet, server_addr)
-            print("Sent Question to Server: {}". format(question))
-            start_timeout(dec_pack.pack_num)
+                packet = handlers.create_question(magic, globals.client_id, sequence, 0, 1, 0, 0, question)
+                dec_pack = handlers.decode_packet(packet)
+                sent_packets[dec_pack.pack_num] = dec_pack
+                
+                client_socket.sendto(packet, server_addr)
+                print("Sent Question to Server: {}". format(question))
+                start_timeout(dec_pack.pack_num)
+            else:
+                print("Voting not installed on this Client")
 
         elif type == 'h':
             packet = handlers.create_hello_packet(magic, globals.client_id, sequence, 0, 1, 0, 1, num_features, features)
@@ -157,7 +171,9 @@ def client_processor(received):
 
         elif received.packet_id == 3:
             recv_packets[received.pack_num] = received
-            print(f"Received Question from server: {received.question}")
+
+            print(f"--------------------\n\nReceived Question from server: {received.question}\n{received.vote_id}\n--------------------")
+
             handlers.send_ack(client_socket, server_addr, received, globals.client_id)
             answer = voting.get_answer(received.question)
             if 5 in features:
@@ -165,12 +181,23 @@ def client_processor(received):
             my_answer = handlers.create_vote_response(magic, globals.client_id, sequence, 0, 1, 0, received.vote_id, answer)
             client_socket.sendto(my_answer, server_addr)
             sequence = sequence + 1
-            print(f"Sent Response to Poll {received.vote_id} : ")
-            print(f"{my_answer}")
+            print(f"----------\nSent Response to Poll {received.vote_id} : {answer}\n----------")
+            #print(f"{my_answer}")
             
         elif received.packet_id == 5:
             recv_packets[received.pack_num] = received
-            print(f"Received Vote Result From Server:\nVote ID {received.vote_id}\nResult {received.result}")
+            # if received.result == 1:
+            #     message == "True"
+            # elif received.result == 0:
+            #     message == "False"
+            # else:
+            #     message = str(received.result)
+            if received.result == 1:
+                print(f"----------\nReceived Vote Result From Server:\nVote ID {received.vote_id}\nResult True \nCONSENSUS ACHIEVED\n----------\n")
+            elif received.result == 0:
+                print(f"----------\nReceived Vote Result From Server:\nVote ID {received.vote_id}\nResult False \nCONSENSUS ACHIEVED\n----------\n")
+            elif received.result == 2:
+                print(f"----------\nReceived Vote Result From Server:\nVote ID {received.vote_id}\nSYNTAX ERROR\n----------")
             handlers.send_ack(client_socket, server_addr, received, globals.client_id)
 
         elif received.packet_id == 6:
@@ -178,10 +205,21 @@ def client_processor(received):
             print(f"Received Message From Server: {received.message}")
             handlers.send_ack(client_socket, server_addr, received, globals.client_id)
 
+        elif received.packet_id == 0x12:
+                recv_packets[received.pack_num] = received
+                print(f"Received Client Packet: {received.client_id}")
+                handlers.send_ack(client_socket, server_addr, received, globals.client_id)
+
+        else:
+            recv_packets[received.pack_num] = received
+            print(f"Received Unkown Type: {received.client_id}")
+            handlers.send_ack(client_socket, server_addr, received, globals.client_id)
+
     elif (received.type == 0xFFFF):
         print(f"Received Ping Response from server")
         # Send Back The SYN
         globals.client_id = received.client_id
+        print(f"Server Given ID: {globals.client_id}")
         synack = handlers.create_ACK_NACK(magic, received.client_id, 0, 0, 1, 3)
         client_socket.sendto(synack, server_addr)
         print(f"SYN sent to Server")

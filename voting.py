@@ -11,6 +11,7 @@ class poll:
         self.question = question_packet.question
         self.voters = {}
         self.end = False
+        self.risky = []
 
         self.result = 0
         self.vote_manager = vote_manager
@@ -26,6 +27,18 @@ class poll:
             result = stat.mode(self.responses.values())
         except:
             print(f"No Data to Get Result of Poll")
+        for client in self.chats.values():
+           
+            if self.responses[client.client_id] != result:
+                self.risky.append(client.client_id)
+        
+        if self.risky:
+            print("\nClient/s")
+            for client in self.risky:
+                print(client)
+            print("Risky Voter\n")
+            return result
+
         if result:
             return result
         else:
@@ -40,10 +53,16 @@ class poll:
         # After this loop has complete or everyone has voted, gather the results 
         # and broadcast them.
         result = self.gather_result()
+        if result == 1:
+            message = "True"
+        elif result == 0:
+            message = "False"
+        else:
+            message = str(result)
 
         if not result:
             result = 0
-        print(f"--------------------\n\nRESULT OF POLL\n{self.vote_id}\n{self.question} : {result}\n\n--------------------")
+        print(f"--------------------\n\nRESULT OF POLL\n{self.vote_id}\n{self.question} : {message}\n\n--------------------")
         self.vote_manager.broadcast_result(self.vote_id, result)
         return
         
@@ -68,7 +87,7 @@ class VoteManager:
         question = received.question
         answer = get_answer(question)
 
-        if len(self.chats) >= 2:
+        if len(self.chats) >= 1:
             self.create_new_poll(answer, received)
             self.broadcast_vote(received)
         else:
