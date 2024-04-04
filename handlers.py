@@ -197,12 +197,12 @@ class message_packet:
 def send_ack(socket, addr, packet, id):
     ack_packet = create_ACK_NACK(packet.magic, id, packet.pack_num, packet.seq_num, packet.final, 1)
     socket.sendto(ack_packet, addr)
-    print(f"ACK {packet.pack_num} Sent to {addr}")
+    print(f"\nACK {packet.pack_num} Sent to {addr}")
 
 def send_nack(socket, addr, packet, id):
     nack_packet = create_ACK_NACK(packet.magic, id, packet.pack_num, packet.seq_num, packet.final, 2)
     socket.sendto(nack_packet, addr)
-    print(f"NACK {packet.pack_num} Sent")
+    print(f"\nNACK {packet.pack_num} Sent")
 
 
 def resend(socket, addr, sent, received):
@@ -483,3 +483,4 @@ def decode_packet(packet):
     else:
         print(f"{packet}")
         print(f"Unkown Packet Type")
+
