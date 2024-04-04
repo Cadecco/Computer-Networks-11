@@ -4,12 +4,12 @@ import handlers
 import statistics as stat # For counting votes.
 
 class poll:
-    def __init__(self, chats, question_packet, vote_manager):
+    def __init__(self, voters, question_packet, vote_manager):
         self.vote_id = question_packet.vote_id
         self.responses = {}
-        self.chats = chats
+        self.risky = []
+        self.voters = voters
         self.question = question_packet.question
-        self.voters = {}
         self.end = False
 
         self.result = 0
@@ -26,15 +26,30 @@ class poll:
             result = stat.mode(self.responses.values())
         except:
             print(f"No Data to Get Result of Poll")
-        if result:
+
+        #if result:
+        for client in self.voters.values():
+            #print("\n", self.responses[client.client_id], ": ", client.client_id, "\n")
+            if self.responses[client.client_id] == False:
+                translate = 0
+            else:
+                translate = 1
+            if self.responses[client.client_id] != result:
+                self.risky.append(client.client_id)
+
+        if self.risky:
+            print("\nClient/s ")
+            for client in self.risky:
+                print(client)
+            print("Will no longer be asked to vote due to risk\n")
             return result
-        else:
-            print(f"No Result Found")
+        #else:
+            #print(f"No Result Found")
 
     def poll_timer(self):
         print(f"\nNew Poll Started {self.vote_id}")
         while(time.time() < self.timer):
-            if len(self.responses) == len(self.chats):
+            if len(self.responses) == len(self.voters):
                 break
         self.end = True
         # After this loop has complete or everyone has voted, gather the results 
@@ -51,6 +66,7 @@ class poll:
 class VoteManager:
     def __init__(self, chats, magic, sequence):
         self.chats = chats
+        self.voters = {}
         self.magic = magic
         self.sequence = sequence
         self.polls = {}
@@ -68,6 +84,12 @@ class VoteManager:
         question = received.question
         answer = get_answer(question)
 
+        for values in self.polls.values():
+            for id in values.risky:
+                if received.client_id == id:
+                    print(f"\n--------------------\n\nThis client was deemed risky, so the vote will not happen\n\n--------------------")
+                    return
+
         if len(self.chats) >= 2:
             self.create_new_poll(answer, received)
             self.broadcast_vote(received)
@@ -81,16 +103,21 @@ class VoteManager:
 
     # Create new poll after receiving a new question.
     def create_new_poll(self, answer, question_packet):
-        # for key, value in self.chats.items():
-        #     print("\n, key "\n")
-        #     if 1 in value.features:
-        #     self.voters[key] = value
+        for key, value in self.chats.items():
+            if 1 in value.features:
+                print("\nVOTER ADDED: ", key)
+                self.voters[key] = value
 
-        new_poll = poll(self.chats, question_packet, self)
+        for values in self.polls.values():
+            for id in values.risky:
+                del self.voters[id]
+                print("\nDeleted ", id, ": risky client")
+
+        new_poll = poll(self.voters, question_packet, self)
         self.polls[question_packet.vote_id] = new_poll
 
     def broadcast_vote(self, received):
-        for client in self.chats.values():
+        for client in self.voters.values():
             id = client.client_id
             seq = client.sequence
             to_send = handlers.create_question_broadcast(self.magic, id, seq, 0, True, 0, received.vote_id, received.question)
@@ -99,7 +126,7 @@ class VoteManager:
         print(f"Vote Broadcast Sent")
 
     def broadcast_result(self, vote_id, result):
-        for client in self.chats.values():
+        for client in self.voters.values():
             id = client.client_id
             seq = client.sequence
             to_send = handlers.create_result_broadcast(self.magic, id, seq, 0, True, 0, vote_id, result)
@@ -129,5 +156,8 @@ def get_answer(question):
     except:
         print(f"No '=' present in equation")
         return 2
+
+
+
 
 
