@@ -50,7 +50,7 @@ def handle_client(addr, packet, chats):
         chats[dec_pack.client_id] = Chat.Chat(addr, dec_pack, server, server_id, magic, vote_manager)
         # Send the packet.
         #chats[addr].chat_loop(data)
-    print(f"Number of Clients: {len(chats)}")
+    print(f"Number of Clients: {len(chats)}\n")
 
 #----------------------------------------------------------------------------#
 
@@ -85,3 +85,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
