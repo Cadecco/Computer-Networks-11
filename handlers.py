@@ -2,23 +2,28 @@ import struct
 import zlib
 import uuid # For generating Vote IDs
 
-magic = 0x01051117
+magic = globals.magic
 chats = {}
 
+# Get the checksum using the crc32 checksum from the z library.
 def get_checksum(data):
     checksum = zlib.crc32(data)
     return checksum
 
-def corruption_check(packet):
-    correct_checksum = packet.checksum
-    enc_pack = encode_packet(packet)
-    checksum = get_checksum(enc_pack[8:])
+# Compare the incoming packets checksum
+# with the checksum calculated on that packet 
+# to determine if it is corrupted.
+def corruption_check(packet, dec_pack):
+    correct_checksum = dec_pack.checksum
+    checksum = get_checksum(packet[8:])
     corrupted = correct_checksum != checksum
     return corrupted
 
 def client_kill(addr, id):
     chats.pop(id)
     print(f"Client {id} Terminated")
+
+# All structure types for the different packets in the protocol.
 
 class ACK:
     def __init__(self, magic, checksum, client_id, pack_num, seq_num, final):
@@ -231,7 +236,8 @@ def send_nack(socket, addr, packet, id):
     socket.sendto(nack_packet, addr)
     print(f"NACK {packet.pack_num} Sent")
 
-
+# Resend a particular packet and the display the appropriate message 
+# that the packet was resent.
 def resend(socket, addr, sent, received):
     packet = sent.get(received.seq_num)
     send_packet = encode_packet(packet)
@@ -359,20 +365,26 @@ def combine_packet(magic, id, pack_num, seq_num, final, type, pip):
     udp_packet = header + pip
     return udp_packet
 
+# Re-encoding certain packets using the corresponding create packet function.
 def encode_packet(p):
     if p.type == 1:
         packet = create_ACK_NACK(p.magic, p.client_id, p.pack_num, p.seq_num, p.final, 1)
         return packet
     elif p.type == 2:
         packet = create_ACK_NACK(p.magic, p.client_id, p.pack_num, p.seq_num, p.final, 2)
+        return packet
     elif p.type == 3:
         packet = create_ACK_NACK(p.magic, p.client_id, p.pack_num, p.seq_num, p.final, 3)
+        return packet
     elif p.type == 4:
         packet = create_ACK_NACK(p.magic, p.client_id, p.pack_num, p.seq_num, p.final, 4)
+        return packet
     elif p.type == 0xFFFE:
         packet = create_ACK_NACK(p.magic, p.client_id, p.pack_num, p.seq_num, p.final, 0xFFFE)
+        return packet
     elif p.type == 0xFFFF:
         packet = create_ACK_NACK(p.magic, p.client_id, p.pack_num, p.seq_num, p.final, 0xFFFF)
+        return packet
     elif p.type == 0:
         if p.packet_id == 0:
             packet = create_hello_packet(p.magic, p.client_id, p.pack_num, p.seq_num, p.final, p.type,  p.version, p.num_features, p.features)
@@ -396,7 +408,7 @@ def encode_packet(p):
             packet = create_message(p.magic, p.client_id, p.pack_num, p.seq_num, p.final, p.type, p.message)
             return packet
 
-
+# For decoding to a specific packet type depending on the information receivedi in the packet.
 def decode_packet(packet):
     # Extract everything up to and including the 16th byte as header.
     header = packet[:24]

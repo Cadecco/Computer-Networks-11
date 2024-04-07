@@ -3,6 +3,7 @@ import time
 import handlers
 import statistics as stat # For counting votes.
 
+# Poll object that controls the receving of responses and tally for a specific poll.
 class poll:
     def __init__(self, chats, question_packet, vote_manager):
         self.vote_id = question_packet.vote_id
@@ -23,22 +24,12 @@ class poll:
         self.poll_timer_thread.start()
 
     def gather_result(self):
+        # Using the mode to find the highest vote.
         try:
             result = stat.mode(self.responses.values())
         except:
             print(f"No Data to Get Result of Poll")
-        for client in self.chats.values():
-           
-            if self.responses[client.client_id] != result:
-                self.risky.append(client.client_id)
-        
-        if self.risky:
-            print("\nClient/s")
-            for client in self.risky:
-                print(client)
-            print("Risky Voter\n")
-            return result
-
+    
         if result:
             return result
         else:
@@ -74,9 +65,11 @@ class VoteManager:
         self.sequence = sequence
         self.polls = {}
 
+    # Direct the incoming packet to the appropriate location.
     def voting_main(self, received):
         # For a vote request.
         if received.vote_id == 2:
+            # Start a new poll if the packet is of type 2, vote request.
             self.prepare_poll(received)
         # Or a response to a poll.
         elif received.vote_id == 4:
@@ -108,6 +101,7 @@ class VoteManager:
         new_poll = poll(self.chats, question_packet, self)
         self.polls[question_packet.vote_id] = new_poll
 
+    # Send out the question to all the clients involved.
     def broadcast_vote(self, received):
         for client in self.chats.values():
             id = client.client_id
@@ -117,6 +111,7 @@ class VoteManager:
         
         print(f"Vote Broadcast Sent")
 
+    # Send out the results of the vote to all the clients involved.
     def broadcast_result(self, vote_id, result):
         for client in self.chats.values():
             id = client.client_id
@@ -128,20 +123,10 @@ class VoteManager:
 
 #-----------------------------------------------------#
 
+# Get the answer to the question using the eval function.
 def get_answer(question):
     # Split the equation question at the equals sign.
     try:
-        # sides = question.split('=')
-        # l_side = sides[0].strip()
-        # r_side = sides[1].strip()
-
-        # left = eval(l_side)
-        # right = eval(r_side)
-
-        # if left == right:
-        #     return 1
-        # else:
-        #     return 0
 
         return eval(question.strip())
     

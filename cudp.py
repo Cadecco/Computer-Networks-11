@@ -10,15 +10,13 @@ import globals
 
 #define MAGIC 17109271
 
-host = '127.0.0.1'
+host = '192.168.192.24'
 port = 8080
-# ID for this client, will not change once generated.
-magic = 0x01051117
+magic = globals.magic
 sequence = 0
 final = 0
 type = 0
 
-#host = socket.gethostbyname("33D03-project.college")
 server_addr = (host, port)
 print(f"{host}")
 # Create a UDP socket
@@ -36,7 +34,7 @@ connected = False
 
 def startup_sequence():
 
-
+    # Initialise the client with the features that you would like.
     print(f"Enter Features to Add to this Client\n'1' For Simple Math Compute\n'3' For Just Messaging\n'5' For Defecting Vote")
     while True:
         feature_input = input()
@@ -49,6 +47,9 @@ def startup_sequence():
         elif feature_input == '5':
             features.append(int(feature_input))
             print(f"Defecting Added")
+        elif feature_input == '0':
+            features.append(int(feature_input))
+            print(f"0 Added")
         elif feature_input == "":
             break
         else:
@@ -58,29 +59,20 @@ def startup_sequence():
 
     input(f"Press Any Key to Connect to the Server")
 
-    sequence = 0
-
-    packet = handlers.create_ACK_NACK(magic, 0, 0, 0, 1, 0xFFFE)
-    dec_pack = handlers.decode_packet(packet)
-    sent_packets[dec_pack.pack_num] = dec_pack
-    #client_socket.sendto(packet, server_addr)
-    #print("Sent Ping to Server")
-    #start_timeout(dec_pack.pack_num)
-
-    sequence = sequence + 1
-
 def client_listener():
     global sequence
     lock = threading.Lock()
     while True:
         time.sleep(1)
         #print(f"{globals.client_id}")
+
+        # If the client has not been given an ID by the server
+        # Continue to send the ping request.
         if globals.client_id == 0:
-                packet = handlers.create_ACK_NACK(magic, 0, 0, 0, 1, 0xFFFE)
-                client_socket.sendto(packet, server_addr)
+                ping = handlers.create_ACK_NACK(magic, 0, 0, 0, 1, 0xFFFE)
+                client_socket.sendto(ping, server_addr)
                 print(f"Sent Ping to Server")
                 time.sleep(1)
-
         try:
             rec_pack, addr = client_socket.recvfrom(1024)
             #print(f"Received {rec_pack}")
@@ -92,6 +84,7 @@ def client_listener():
         except:
             continue
 
+# Start a timeout using the timeout library once a packet has been sent.
 def start_timeout(pack_num):
     timeouts[pack_num] = timeout.timeout(server_addr, pack_num, ack_packets, sent_packets, client_socket)
     #timeouts[pack_num].timeout_loop()
@@ -102,6 +95,8 @@ def client_sender():
     sequence = 0
     while True:
         type = input("Select Message Type: ")
+
+        # Send a simple text message to the server, using the 'm' command.
         if type == 'm':
             if 3 in features:
                 message = input("Enter your message: ")
@@ -117,6 +112,7 @@ def client_sender():
                 print("Messaging Feature not installed on this Client")
                 continue
 
+        # Enter 'v' to create a message of type 'vote'.
         elif type == 'v':
             if 1 in features:
                 question = input("Enter your question: ")
@@ -131,6 +127,7 @@ def client_sender():
             else:
                 print("Voting not installed on this Client")
 
+        # Command h for sending a hello packet to the server.
         elif type == 'h':
             packet = handlers.create_hello_packet(magic, globals.client_id, sequence, 0, 1, 0, 1, num_features, features)
             dec_pack = handlers.decode_packet(packet)
@@ -144,6 +141,7 @@ def client_sender():
 
 def main():
 
+    # First run the startup sequence and then the sender and receiver on separate threads.
     startup_sequence()
 
     send_thread = threading.Thread(target=client_sender, )
@@ -155,7 +153,7 @@ def main():
 if __name__ == "__main__":
     main()
 
-
+# As with the server side, take appropriate action depending on which packets were received.
 def client_processor(received):
     global connected
     global sequence
@@ -186,12 +184,7 @@ def client_processor(received):
             
         elif received.packet_id == 5:
             recv_packets[received.pack_num] = received
-            # if received.result == 1:
-            #     message == "True"
-            # elif received.result == 0:
-            #     message == "False"
-            # else:
-            #     message = str(received.result)
+
             if received.result == 1:
                 print(f"----------\nReceived Vote Result From Server:\nVote ID {received.vote_id}\nResult True \nCONSENSUS ACHIEVED\n----------\n")
             elif received.result == 0:

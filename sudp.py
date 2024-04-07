@@ -13,7 +13,7 @@ host = '0.0.0.0'
 port = 8080
 
 server_id = 1234
-magic = 17109271
+magic = globals.magic
 
 sequence = 0
 # Create a UDP socket
@@ -22,6 +22,7 @@ server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 # Instantiate the vote manager.
 vote_manager = voting.VoteManager(chats, magic, sequence)
 
+# Function to send a message to all connected clients.
 def broadcast(message, sequence):
     for client in chats.values():
         id = client.client_id
@@ -31,12 +32,19 @@ def broadcast(message, sequence):
         
     print(f"Broadcast Sent")
 
+# Direct an incoming message to the correct client.
 def handle_client(addr, packet, chats):
 
-    #
-    # print(f"Initially Received {packet}")
     dec_pack = handlers.decode_packet(packet)
     chat_number = chats.get(dec_pack.client_id)
+
+    # First perform magic and checksum check.
+    if(magic != dec_pack.magic):
+        print(f"{dec_pack.client_id} Magic Does Not Match")
+
+    corrupted = handlers.corruption_check(packet, dec_pack)
+    if(corrupted):
+        print(f"{packet.client_id} w/ Seq {packet.pack_num} Corrupted")
 
     # If there is a chat matching this ID send it to the SR ARQ handler.
     if chat_number:
@@ -66,6 +74,7 @@ def server_listener():
         packet, addr = server.recvfrom(1024)   
         handle_client(addr, packet, chats)
 
+# Sender function can send a message to any client.
 def server_sender():
 
     while True:
@@ -75,6 +84,9 @@ def server_sender():
         print("Sent message to clients: {}".format(message))
 
 def main():
+
+    # Sender and receiver are started on separated threads,
+    # server can therefore received and send at the same time.
 
     listen_thread = threading.Thread(target=server_listener, )
     listen_thread.start()
