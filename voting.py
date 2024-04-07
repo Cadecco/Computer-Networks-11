@@ -30,10 +30,7 @@ class poll:
         except:
             print(f"No Data to Get Result of Poll")
     
-        if result:
-            return result
-        else:
-            print(f"No Result Found")
+        return result
 
     def poll_timer(self):
         print(f"\nNew Poll Started {self.vote_id}")

@@ -101,7 +101,7 @@ def client_sender():
             if 3 in features:
                 message = input("Enter your message: ")
 
-                packet = handlers.create_message(magic, globals.client_id, sequence, 0, 1, 0, message)
+                packet = handlers.create_message(globals.magic, globals.client_id, sequence, 0, 1, 0, message)
                 dec_pack = handlers.decode_packet(packet)
                 sent_packets[dec_pack.pack_num] = dec_pack
 
@@ -117,7 +117,7 @@ def client_sender():
             if 1 in features:
                 question = input("Enter your question: ")
 
-                packet = handlers.create_question(magic, globals.client_id, sequence, 0, 1, 0, 0, question)
+                packet = handlers.create_question(globals.magic, globals.client_id, sequence, 0, 1, 0, 0, question)
                 dec_pack = handlers.decode_packet(packet)
                 sent_packets[dec_pack.pack_num] = dec_pack
                 
@@ -129,7 +129,7 @@ def client_sender():
 
         # Command h for sending a hello packet to the server.
         elif type == 'h':
-            packet = handlers.create_hello_packet(magic, globals.client_id, sequence, 0, 1, 0, 1, num_features, features)
+            packet = handlers.create_hello_packet(globals.magic, globals.client_id, sequence, 0, 1, 0, 1, num_features, features)
             dec_pack = handlers.decode_packet(packet)
             sent_packets[dec_pack.pack_num] = dec_pack
             
@@ -176,7 +176,7 @@ def client_processor(received):
             answer = voting.get_answer(received.question)
             if 5 in features:
                 answer = not answer
-            my_answer = handlers.create_vote_response(magic, globals.client_id, sequence, 0, 1, 0, received.vote_id, answer)
+            my_answer = handlers.create_vote_response(globals.magic, globals.client_id, sequence, 0, 1, 0, received.vote_id, answer)
             client_socket.sendto(my_answer, server_addr)
             sequence = sequence + 1
             print(f"----------\nSent Response to Poll {received.vote_id} : {answer}\n----------")
@@ -213,7 +213,7 @@ def client_processor(received):
         # Send Back The SYN
         globals.client_id = received.client_id
         print(f"Server Given ID: {globals.client_id}")
-        synack = handlers.create_ACK_NACK(magic, received.client_id, 0, 0, 1, 3)
+        synack = handlers.create_ACK_NACK(globals.magic, received.client_id, 0, 0, 1, 3)
         client_socket.sendto(synack, server_addr)
         print(f"SYN sent to Server")
 

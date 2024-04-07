@@ -4,6 +4,7 @@ import handlers
 import Chat
 import voting
 import random
+import globals
 
 # Initialise array of chats.
 chats = {}
@@ -13,21 +14,20 @@ host = '0.0.0.0'
 port = 8080
 
 server_id = 1234
-magic = globals.magic
 
 sequence = 0
 # Create a UDP socket
 server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 # Instantiate the vote manager.
-vote_manager = voting.VoteManager(chats, magic, sequence)
+vote_manager = voting.VoteManager(chats, globals.magic, sequence)
 
 # Function to send a message to all connected clients.
 def broadcast(message, sequence):
     for client in chats.values():
         id = client.client_id
         sequence = client.sequence
-        to_send = handlers.create_message(magic, server_id, sequence, 0, True, 0, message)
+        to_send = handlers.create_message(globals.magic, server_id, sequence, 0, True, 0, message)
         chats[id].chat_sender(to_send)
         
     print(f"Broadcast Sent")
@@ -39,7 +39,7 @@ def handle_client(addr, packet, chats):
     chat_number = chats.get(dec_pack.client_id)
 
     # First perform magic and checksum check.
-    if(magic != dec_pack.magic):
+    if(globals.magic != dec_pack.magic):
         print(f"{dec_pack.client_id} Magic Does Not Match")
 
     corrupted = handlers.corruption_check(packet, dec_pack)
@@ -55,7 +55,7 @@ def handle_client(addr, packet, chats):
         dec_pack.client_id = random.randint(8000, 9000)
         print(f"New Connecton from {addr} with ID: {dec_pack.client_id}")
         
-        chats[dec_pack.client_id] = Chat.Chat(addr, dec_pack, server, server_id, magic, vote_manager)
+        chats[dec_pack.client_id] = Chat.Chat(addr, dec_pack, server, server_id, globals.magic, vote_manager)
         # Send the packet.
         #chats[addr].chat_loop(data)
     print(f"Number of Clients: {len(chats)}")

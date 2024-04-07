@@ -1,6 +1,7 @@
 import threading
 import handlers
 import timeout
+import globals
 
 # Chat object for a particular client's connection to the server.
 class Chat:

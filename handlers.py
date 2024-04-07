@@ -2,7 +2,7 @@ import struct
 import zlib
 import uuid # For generating Vote IDs
 
-magic = globals.magic
+magic = 0x01051117
 chats = {}
 
 # Get the checksum using the crc32 checksum from the z library.
